@@ -1,0 +1,30 @@
+{
+  "name": "@chevalier/core",
+  "version": "0.0.1",
+  "license": "MIT",
+  "exports": "./src/mod.ts",
+  "publish": {
+    "include": ["src/**/*.ts", "src/**/*.tsx", "README.md", "LICENSE", "deno.json"],
+    "exclude": ["src/**/*.test.ts", "src/**/*.test.tsx", "examples/"]
+  },
+  "tasks": {
+    "dev": "vite",
+    "build": "vite build && vite build --ssr",
+    "preview": "vite preview"
+  },
+  "imports": {
+    "@std/assert": "jsr:@std/assert@^1.0.0",
+    "hono": "npm:hono@^4.6.0",
+    "hono/": "npm:/hono@^4.6.0/",
+    "preact": "npm:preact@^10.24.0",
+    "preact/": "npm:/preact@^10.24.0/",
+    "preact-render-to-string": "npm:preact-render-to-string@^6.5.0",
+    "vite": "npm:vite@^5.4.0",
+    "@prefresh/vite": "npm:@prefresh/vite@^2.4.0"
+  },
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "jsxImportSource": "preact",
+    "lib": ["dom", "dom.iterable", "deno.ns", "esnext"]
+  }
+}

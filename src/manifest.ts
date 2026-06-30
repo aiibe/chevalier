@@ -1,0 +1,64 @@
+// Vite client-manifest → hashed-asset resolution.
+
+/** Chunk `name` of chevalier's client entry (kept in sync with src/vite.ts). */
+export const CLIENT_NAME = "chevalier-client";
+
+/** Dev URL of the chevalier client entry (the virtual module Vite serves). */
+export const CLIENT_DEV_URL = "/@id/chevalier:client";
+
+export interface ViteManifestChunk {
+  /** Emitted file, manifest-root-relative (e.g. "assets/client-Dv3fyGqv.js"). */
+  file: string;
+  name?: string;
+  isEntry?: boolean;
+  css?: string[];
+}
+
+/** Parsed `.vite/manifest.json`: source key (e.g. "app/client.ts") → chunk. */
+export type ViteManifest = Record<string, ViteManifestChunk>;
+
+/**
+ * Resolve the client-entry URL the per-page boot imports hydrateIslands from.
+ * Build → the chevalier-client chunk located by its manifest `name`. Dev (no
+ * manifest) → the virtual module's dev URL. A build that somehow lacks the
+ * chunk degrades to the dev URL (visible 404) rather than throwing.
+ */
+export function resolveClientEntry(manifest?: ViteManifest): string {
+  if (!manifest) return CLIENT_DEV_URL;
+  for (const chunk of Object.values(manifest)) {
+    if (chunk.name === CLIENT_NAME) return "/" + chunk.file.replace(/^\//, "");
+  }
+  return CLIENT_DEV_URL;
+}
+
+/**
+ * Resolve an island id (e.g. "islands/counter") to its hashed build chunk by
+ * probing each JSX extension under `appRoot`; null if unresolved (caller falls back to dev URL).
+ */
+export function resolveIslandUrl(
+  id: string,
+  manifest: ViteManifest | undefined,
+  appRoot = "app",
+): string | null {
+  if (!manifest) return null;
+  const root = appRoot.replace(/^\.?\//, "").replace(/\/$/, "");
+  for (const ext of ["tsx", "jsx"]) {
+    const chunk = manifest[`${root}/${id}.${ext}`];
+    if (chunk) return "/" + chunk.file.replace(/^\//, "");
+  }
+  return null;
+}
+
+/** Resolve every dev island URL to its hashed build chunk, falling back to the dev URL if unresolved. */
+export function resolveIslandUrls(
+  devUrls: Record<string, string>,
+  manifest: ViteManifest | undefined,
+  appRoot = "app",
+): Record<string, string> {
+  if (!manifest) return devUrls;
+  const out: Record<string, string> = {};
+  for (const [id, devUrl] of Object.entries(devUrls)) {
+    out[id] = resolveIslandUrl(id, manifest, appRoot) ?? devUrl;
+  }
+  return out;
+}

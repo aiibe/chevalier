@@ -1,0 +1,16 @@
+# Dependencies (Deno node_modules dir)
+node_modules/
+.deno/
+
+# Build output
+dist/
+.vite/
+
+# Deno
+deno.lock
+
+# Editor / OS
+.DS_Store
+*.log
+.idea/
+.vscode/

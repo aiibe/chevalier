@@ -1,0 +1,341 @@
+// Vite plugin: dev SSR middleware, client/island build inputs, island HMR.
+// Routes/_layout full-reload (server-owned SSR); islands HMR via prefresh.
+
+import type { Connect, Plugin, ViteDevServer } from "vite";
+import { isIsland, islandId, normalizePath } from "./islands.ts";
+import { CLIENT_NAME } from "./manifest.ts";
+
+// Requests Vite must handle itself, not the SSR app: its client runtime,
+// /@fs and /@id specifiers, source files, HMR pings, and public assets.
+const VITE_OWNED = [
+  /^\/@/, // /@vite/client, /@fs/, /@id/, /@react-refresh
+  /\.[cm]?[jt]sx?($|\?)/, // source modules Vite transforms
+  /\?(t|import|html-proxy|raw|url|worker)/, // Vite query suffixes
+  /^\/node_modules\//,
+  /^\/favicon\.ico$/,
+];
+
+// Connect types req as a bare IncomingMessage without the http augmentations,
+// so we narrow to the fields we read structurally.
+interface DevReq {
+  url?: string;
+  method?: string;
+  headers: Record<string, string | string[] | undefined>;
+  socket: { encrypted?: boolean };
+}
+
+/**
+ * Dev SSR middleware (replaces @hono/vite-dev-server): ssrLoadModule the entry,
+ * run its Hono app's fetch, pipe the Response back, and inject Vite's HMR client
+ * into HTML.
+ */
+function devMiddleware(
+  server: ViteDevServer,
+  entry: string,
+): Connect.NextHandleFunction {
+  return async (rawReq, res, next) => {
+    const req = rawReq as unknown as DevReq;
+    const url = req.url ?? "/";
+    if (VITE_OWNED.some((re) => re.test(url))) return next();
+
+    let app: { fetch: (r: Request) => Response | Promise<Response> };
+    try {
+      const mod = await server.ssrLoadModule(entry);
+      app = (mod.default ?? mod.app) as typeof app;
+      if (typeof app?.fetch !== "function") {
+        throw new Error(`${entry} has no default/app export with a fetch()`);
+      }
+    } catch (e) {
+      if (e instanceof Error) server.ssrFixStacktrace(e);
+      return next(e);
+    }
+
+    try {
+      const proto = req.socket.encrypted ? "https" : "http";
+      const request = new Request(
+        new URL(url, `${proto}://${req.headers.host ?? "localhost"}`),
+        {
+          method: req.method,
+          headers: req.headers as HeadersInit,
+          // GET/HEAD have no body; anything else streams the Node req in.
+          body: req.method === "GET" || req.method === "HEAD"
+            ? undefined
+            : (req as unknown as ReadableStream),
+          // @ts-ignore duplex is required by undici for a streaming body.
+          duplex: "half",
+        },
+      );
+      const response = await app.fetch(request);
+      res.statusCode = response.status;
+      const isHtml = /^text\/html/.test(
+        response.headers.get("content-type") ?? "",
+      );
+      response.headers.forEach((v, k) => {
+        // content-length is recomputed after we inject the HMR client below.
+        if (isHtml && k === "content-length") return;
+        res.setHeader(k, v);
+      });
+      if (isHtml) {
+        // Inject Vite's HMR client by string, not transformIndexHtml — the
+        // latter rewrites our inline island-boot <script> into an asset proxy.
+        const body = (await response.text()).replace(
+          "<head>",
+          `<head>\n<script type="module" src="/@vite/client"></script>`,
+        );
+        res.setHeader(
+          "content-length",
+          String(new TextEncoder().encode(body).length),
+        );
+        res.end(body);
+      } else {
+        res.end(response.body ? await response.text() : undefined);
+      }
+    } catch (e) {
+      next(e);
+    }
+  };
+}
+
+function inputKey(entry: string): string {
+  const base = entry.slice(entry.lastIndexOf("/") + 1);
+  return base.replace(/\.[^.]+$/, "") || base;
+}
+
+/**
+ * Discover island sources under `root`, returning id → app-root-relative path.
+ * Seeds the client build inputs so each island code-splits into its own chunk.
+ */
+function discoverIslands(
+  root: string,
+  appRootRel: string,
+): Record<string, string> {
+  const walk = (dir: string): string[] => {
+    const out: string[] = [];
+    let entries: Iterable<Deno.DirEntry>;
+    try {
+      entries = Deno.readDirSync(dir);
+    } catch {
+      return out; // dir missing → no inputs
+    }
+    for (const entry of entries) {
+      const p = `${dir}/${entry.name}`;
+      if (entry.isDirectory) out.push(...walk(p));
+      else out.push(p);
+    }
+    return out;
+  };
+
+  const map: Record<string, string> = {};
+  for (const abs of walk(root)) {
+    const rel = normalizePath(abs.slice(root.length + 1));
+    if (!isIsland(rel)) continue;
+    map[islandId(rel)] = `${appRootRel}/${rel}`;
+  }
+  return map;
+}
+
+// @prefresh/vite is CJS outside src/, so a bare-specifier import fails Vite's
+// import-analysis; resolve via import.meta.resolve to a file:// URL instead.
+type TransformFn = (...args: unknown[]) => unknown;
+let prefreshTransform: Promise<TransformFn | null> | undefined;
+function loadPrefreshTransform(): Promise<TransformFn | null> {
+  prefreshTransform ??= (async () => {
+    try {
+      const m = await import(
+        /* @vite-ignore */ import.meta.resolve("@prefresh/vite")
+      );
+      const factory = (m as { default?: unknown }).default ?? m;
+      const plugin = typeof factory === "function" ? factory() : null;
+      const t = (plugin as { transform?: unknown } | null)?.transform;
+      return typeof t === "function" ? (t as TransformFn) : null;
+    } catch {
+      return null;
+    }
+  })();
+  return prefreshTransform;
+}
+
+export interface ChevalierOptions {
+  /** App root relative to project root. Default: "./app". */
+  appRoot?: string;
+  /** SSR server entry. Default: "/app/server.ts". */
+  entry?: string;
+  /** Virtual module id exposing the island id → dev-URL map. */
+  islandsModuleId?: string;
+}
+
+const DEFAULTS = {
+  appRoot: "./app",
+  entry: "/app/server.ts",
+  islandsModuleId: "virtual:chevalier-islands",
+};
+
+/** App-root-relative path for `file`, or null if it's outside the app root. */
+function appRel(file: string, appRoot: string): string | null {
+  const p = normalizePath(file).replace(/[?#].*$/, ""); // Vite query suffix
+  const root = normalizePath(appRoot).replace(/^\.?\//, "");
+  if (p.includes(`/${root}/`)) {
+    return p.slice(p.indexOf(`/${root}/`) + root.length + 2);
+  }
+  if (p.startsWith(root + "/")) return p.slice(root.length + 1);
+  return null;
+}
+
+function shouldFullReload(file: string, appRoot: string): boolean {
+  const rel = appRel(file, appRoot);
+  if (rel === null) return false;
+  if (isIsland(rel)) return false;
+  return rel.startsWith("routes/") || rel.includes("_layout");
+}
+
+function scopedPrefresh(appRoot: string, isServe: () => boolean): Plugin {
+  return {
+    name: "chevalier:prefresh",
+    async transform(
+      this: unknown,
+      code: string,
+      id: string,
+      txOpts?: { ssr?: boolean },
+    ) {
+      // Prefresh's HMR hooks only exist in the dev runtime; running it during
+      // `vite build` would corrupt island chunks (now their own build inputs).
+      if (!isServe() || txOpts?.ssr) return;
+      const rel = appRel(id, appRoot);
+      if (rel === null || !isIsland(rel)) return;
+      return (await loadPrefreshTransform())?.call(this, code, id, txOpts);
+    },
+  } as Plugin;
+}
+
+export function chevalier(options: ChevalierOptions = {}): Plugin[] {
+  const opts = { ...DEFAULTS, ...options };
+  const virtualId = opts.islandsModuleId;
+  const resolvedVirtualId = "\0" + virtualId;
+  // Virtual ids resolve to themselves (no \0), so their dev URLs stay readable:
+  // /@id/chevalier:client and /@id/chevalier-island:<id>. The \0 convention
+  // would surface as __x00__ in those URLs.
+  const clientVirtualId = "chevalier:client";
+  // Prefix marking a per-island virtual alias → its real source file on disk.
+  const islandPrefix = "chevalier-island:";
+  const appRootRel = opts.appRoot.replace(/^\.?\//, "");
+  let serve = true; // gates prefresh to dev; set from config().env.command
+  let projectRoot = ""; // resolved config.root; used to locate islands on disk
+
+  const main: Plugin = {
+    name: "chevalier",
+
+    config(config, env) {
+      serve = env.command === "serve";
+      // Client build only: add each island as a Rollup input so it lands in the
+      // manifest, where server.ts resolves it via resolveIslandUrl.
+      if (env.command === "build" && !env.isSsrBuild) {
+        const root = config.root ?? Deno.cwd();
+        const islands = discoverIslands(`${root}/${appRootRel}`, appRootRel);
+        const existing = config.build?.rollupOptions?.input;
+        // Normalize the user's input (string | string[] | Record) into a keyed object.
+        const input: Record<string, string> = {};
+        if (typeof existing === "string") input["client"] = existing;
+        else if (Array.isArray(existing)) {
+          for (const e of existing) input[inputKey(e)] = e;
+        } else if (existing) Object.assign(input, existing);
+        Object.assign(input, islands);
+        // The chevalier client entry — keyed by CLIENT_NAME so the chunk's
+        // manifest `name` is stable for resolveClientEntry.
+        input[CLIENT_NAME] = clientVirtualId;
+        config.build ??= {};
+        config.build.rollupOptions ??= {};
+        config.build.rollupOptions.input = input;
+        // Default preserveEntrySignatures:false drops the client entry's
+        // `hydrateIslands` export, which the per-page boot script needs by name.
+        config.build.rollupOptions.preserveEntrySignatures = "allow-extension";
+      }
+
+      return {
+        // custom (not spa): stop Vite's html/spa fallback from rewriting page
+        // URLs to /index.html before our SSR middleware sees them.
+        appType: "custom",
+        // Hydration parity with preact-render-to-string SSR output.
+        esbuild: { jsx: "automatic", jsxImportSource: "preact" },
+        resolve: {
+          alias: { "react": "preact/compat", "react-dom": "preact/compat" },
+        },
+      };
+    },
+
+    configResolved(config) {
+      projectRoot = config.root;
+    },
+
+    resolveId(id) {
+      if (id === virtualId) return resolvedVirtualId;
+      if (id === clientVirtualId) return id; // self-resolve, no \0 (see above)
+      // chevalier-island:<id> → the real island source, so Vite serves and HMRs
+      // the actual file; the alias only prettifies the dev URL.
+      if (id.startsWith(islandPrefix)) {
+        const islandKey = id.slice(islandPrefix.length);
+        const root = projectRoot || Deno.cwd();
+        const islands = discoverIslands(`${root}/${appRootRel}`, appRootRel);
+        const rel = islands[islandKey]; // e.g. "app/islands/counter.tsx"
+        if (rel) return `${root}/${rel}`;
+      }
+    },
+
+    load(id) {
+      if (id === clientVirtualId) {
+        return `export { hydrateIslands } from "chevalier/client";`;
+      }
+      if (id !== resolvedVirtualId) return;
+      // Island id → dev URL literal. Dev-only; a build resolves urls from the
+      // manifest (resolveIslandUrl).
+      const root = projectRoot || Deno.cwd();
+      const islands = discoverIslands(`${root}/${appRootRel}`, appRootRel);
+      const urls: Record<string, string> = {};
+      for (const islandKey of Object.keys(islands)) {
+        urls[islandKey] = `/@id/${islandPrefix}${islandKey}`;
+      }
+      return `export const urls = ${JSON.stringify(urls)};`;
+    },
+
+    // SSR-only: wrap the island's default export with the hydration marker so
+    // user code stays a plain `export default Component`, no island() boilerplate.
+    transform(code, id, transformOpts) {
+      if (!transformOpts?.ssr) return;
+      const rel = appRel(id, opts.appRoot);
+      if (rel === null || !isIsland(rel)) return;
+      if (!/export\s+default\s+/.test(code)) return;
+      const marker = islandId(rel);
+
+      // Bind the default to a const, then re-export it wrapped. `export default
+      // function Foo` becomes `const … = function Foo`, a valid named fn expr.
+      const rewritten = code.replace(
+        /export\s+default\s+/,
+        "const __chevalierDefault = ",
+      ) +
+        `\nexport default __chevalierIsland(__chevalierDefault, ${
+          JSON.stringify(marker)
+        });`;
+      return {
+        code:
+          `import { island as __chevalierIsland } from "chevalier/registry";\n` +
+          rewritten,
+        map: null,
+      };
+    },
+
+    configureServer(server) {
+      // Post hook: our SSR app is the fallthrough, after Vite's own middlewares.
+      return () => server.middlewares.use(devMiddleware(server, opts.entry));
+    },
+
+    handleHotUpdate({ file, server }: { file: string; server: ViteDevServer }) {
+      if (shouldFullReload(file, opts.appRoot)) {
+        server.ws.send({ type: "full-reload" });
+        return []; // swallow HMR — no partial module swap
+      }
+    },
+  };
+
+  return [main, scopedPrefresh(opts.appRoot, () => serve)];
+}
+
+export default chevalier;
