@@ -19,22 +19,12 @@ Pass no directory and it prompts for one (defaults to `my-chevalier-app`).
 
 ## What you get
 
-A minimal working app wired exactly like [`examples/basic`](../examples/basic):
+A minimal working app to start from:
 
-```
-my-app/
-  deno.json            # tasks + import map, pinned to @chevalier/core
-  vite.config.ts       # the chevalier() Vite plugin
-  app/
-    server.ts          # SSR entry (globs routes, createApp)
-    routes/
-      _layout.tsx      # document shell
-      _404.tsx  _error.tsx
-      index.tsx  about.tsx   # a page with an island, and one with none
-      api.ts           # export const app → Hono sub-app at /api
-    islands/
-      counter.tsx      # hydrates on the client
-```
+- A home page with an interactive island, and an about page with none
+- A layout, plus 404 and error pages
+- An `/api` handler
+- A hot-reloading dev server
 
-Edit `counter.tsx` and it hot-updates with state preserved. Edit a route or
-`_layout.tsx` and the page does a full reload.
+Edit the island and it hot-updates with its state preserved. Edit a page or the
+layout and it does a full reload.

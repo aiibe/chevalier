@@ -12,12 +12,17 @@ const FILES: TemplateFile[] = [
   {
     path: "deno.json",
     contents:
-      '{\n  "tasks": {\n    "dev": "vite",\n    "build": "vite build && vite build --ssr app/server.ts",\n    "preview": "vite preview"\n  },\n  "imports": {\n    "chevalier": "jsr:@chevalier/core@{{CORE}}",\n    "chevalier/client": "jsr:@chevalier/core@{{CORE}}/client",\n    "chevalier/registry": "jsr:@chevalier/core@{{CORE}}/registry",\n    "hono": "npm:hono@^4.6.0",\n    "preact": "npm:preact@^10.24.0",\n    "preact/": "npm:/preact@^10.24.0/",\n    "preact-render-to-string": "npm:preact-render-to-string@^6.5.0",\n    "vite": "npm:vite@^7.0.0",\n    "@deno/vite-plugin": "npm:@deno/vite-plugin@^2.0.2",\n    "@prefresh/vite": "npm:@prefresh/vite@^2.4.0",\n    "@prefresh/core": "npm:@prefresh/core@^1.5.0",\n    "@prefresh/utils": "npm:@prefresh/utils@^1.2.0"\n  },\n  "nodeModulesDir": "auto",\n  "compilerOptions": {\n    "jsx": "react-jsx",\n    "jsxImportSource": "preact",\n    "lib": ["dom", "dom.iterable", "deno.ns", "esnext"]\n  }\n}\n',
+      '{\n  "tasks": {\n    "dev": "vite",\n    "build": "vite build && vite build --ssr app/server.ts",\n    "preview": "vite preview",\n    "start": "deno serve -A server.prod.ts",\n    "check": "deno fmt --check . && deno lint . && deno check"\n  },\n  "imports": {\n    "@std/http": "jsr:@std/http@^1",\n    "chevalier": "jsr:@chevalier/core@{{CORE}}",\n    "chevalier/client": "jsr:@chevalier/core@{{CORE}}/client",\n    "chevalier/registry": "jsr:@chevalier/core@{{CORE}}/registry",\n    "hono": "npm:hono@^4.6.0",\n    "preact": "npm:preact@^10.24.0",\n    "preact/": "npm:/preact@^10.24.0/",\n    "preact-render-to-string": "npm:preact-render-to-string@^6.5.0",\n    "vite": "npm:vite@^7.0.0",\n    "@deno/vite-plugin": "npm:@deno/vite-plugin@^2.0.2",\n    "@prefresh/vite": "npm:@prefresh/vite@^2.4.0",\n    "@prefresh/core": "npm:@prefresh/core@^1.5.0",\n    "@prefresh/utils": "npm:@prefresh/utils@^1.2.0"\n  },\n  "nodeModulesDir": "auto",\n  "exclude": ["dist"],\n  "compilerOptions": {\n    "jsx": "react-jsx",\n    "jsxImportSource": "preact",\n    "lib": ["dom", "dom.iterable", "deno.ns", "esnext"],\n    "types": ["vite/client"]\n  }\n}\n',
   },
   {
     path: "vite.config.ts",
     contents:
       'import { defineConfig, type PluginOption } from "vite";\nimport deno from "@deno/vite-plugin";\nimport { chevalier } from "chevalier";\n\n// @deno/vite-plugin resolves jsr:/npm: specifiers via Deno\'s loader; its hooks\n// only engage on Vite 7 (Environment API). Client/SSR need separate outDirs.\nexport default defineConfig(({ isSsrBuild }) => ({\n  // One Preact instance across SSR + islands is required for hydration.\n  resolve: {\n    dedupe: ["preact", "preact/hooks", "preact-render-to-string", "hono"],\n    // Published core bakes in npm:preact@x/jsx-runtime specifiers; map them back\n    // to the import-map name so the jsx-runtime subpath (jsxs/jsxDEV) resolves.\n    alias: [\n      { find: /^npm:preact@[^/]*\\/(.*)$/, replacement: "preact/$1" },\n      { find: /^npm:preact@[^/]*$/, replacement: "preact" },\n    ],\n  },\n  // Must process preact in-pipeline: externalized, its jsx-runtime subpath\n  // (jsxs/jsxDEV) collapses to bare preact, which lacks those exports.\n  ssr: { noExternal: true },\n  optimizeDeps: { noDiscovery: true, include: [] },\n  // chevalier before deno so it claims virtual:chevalier-islands before the\n  // deno loader rejects the virtual: scheme. Cast: the two plugins resolve\n  // Vite\'s Plugin type through separate node_modules trees under Deno.\n  plugins: [\n    chevalier({ appRoot: "./app", entry: "/app/server.ts" }),\n    deno(),\n  ] as PluginOption[],\n  build: isSsrBuild ? { outDir: "dist/server" } : {\n    // Client entry + island inputs are injected by the chevalier plugin.\n    outDir: "dist/client",\n    manifest: true,\n  },\n}));\n',
+  },
+  {
+    path: "server.prod.ts",
+    contents:
+      '// Production entry: `deno task start` after `deno task build`.\n// The SSR bundle only exports a Hono app; export a { fetch } handler so\n// `deno serve` provides the listener (the Deno Deploy-portable form). Built\n// client chunks are served from dist/client (a real deploy uses a CDN).\nimport app from "./dist/server/server.mjs";\nimport { serveDir } from "@std/http/file-server";\n\nconst CLIENT_DIR = new URL("./dist/client", import.meta.url).pathname;\n\nexport default {\n  fetch(req: Request): Response | Promise<Response> {\n    return new URL(req.url).pathname.startsWith("/assets/")\n      ? serveDir(req, { fsRoot: CLIENT_DIR, quiet: true })\n      : app.fetch(req);\n  },\n};\n',
   },
   {
     path: ".gitignore",
@@ -27,7 +32,7 @@ const FILES: TemplateFile[] = [
   {
     path: "README.md",
     contents:
-      "# {{NAME}}\n\nA [Chevalier](https://jsr.io/@chevalier/core) app.\n\n```sh\ndeno install\ndeno task dev       # vite dev server\ndeno task build     # client + SSR build\ndeno task preview   # preview the build\n```\n\nRoutes live in `app/routes/`, islands in `app/islands/`. A page with no islands\nships zero client JavaScript.\n",
+      "# {{NAME}}\n\nA [Chevalier](https://jsr.io/@chevalier/core) app.\n\n```sh\ndeno install\ndeno task dev       # start the dev server\ndeno task check     # format, lint, and type-check\n```\n\nRoutes live in `app/routes/`, islands in `app/islands/`.\n\n## Production\n\n```sh\ndeno task build     # build the app\ndeno task start     # serve the build\n```\n\nSet `PORT` to change the port (default 8000).\n",
   },
   {
     path: "app/server.ts",

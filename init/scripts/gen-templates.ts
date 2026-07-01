@@ -12,6 +12,7 @@ const OUT = new URL("templates.gen.ts", HERE);
 const MANIFEST: ReadonlyArray<readonly [string, string]> = [
   ["deno.json", "deno.json"],
   ["vite.config.ts", "vite.config.ts"],
+  ["server.prod.ts", "server.prod.ts"],
   ["gitignore", ".gitignore"],
   ["README.md", "README.md"],
   ["app/server.ts", "app/server.ts"],

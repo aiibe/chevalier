@@ -2,9 +2,12 @@
   "tasks": {
     "dev": "vite",
     "build": "vite build && vite build --ssr app/server.ts",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "start": "deno serve -A server.prod.ts",
+    "check": "deno fmt --check . && deno lint . && deno check"
   },
   "imports": {
+    "@std/http": "jsr:@std/http@^1",
     "chevalier": "jsr:@chevalier/core@{{CORE}}",
     "chevalier/client": "jsr:@chevalier/core@{{CORE}}/client",
     "chevalier/registry": "jsr:@chevalier/core@{{CORE}}/registry",
@@ -19,9 +22,11 @@
     "@prefresh/utils": "npm:@prefresh/utils@^1.2.0"
   },
   "nodeModulesDir": "auto",
+  "exclude": ["dist"],
   "compilerOptions": {
     "jsx": "react-jsx",
     "jsxImportSource": "preact",
-    "lib": ["dom", "dom.iterable", "deno.ns", "esnext"]
+    "lib": ["dom", "dom.iterable", "deno.ns", "esnext"],
+    "types": ["vite/client"]
   }
 }
