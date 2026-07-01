@@ -86,6 +86,35 @@ try {
     if (after !== "counts: 4") {
       fail("click did not increment — island did not hydrate (CSP block?)");
     }
+
+    // Nested Counter(start=10) has no marker of its own; a working click proves
+    // it hydrated via its owner (Panel) re-rendering it on the client.
+    const buttons = await page.$$("button");
+    let nested = null;
+    for (const b of buttons) {
+      if ((await b.evaluate(text)) === "counts: 10") {
+        nested = b;
+        break;
+      }
+    }
+    if (!nested) throw new Error("nested counter button not found in DOM");
+    const nestedBefore = await nested.evaluate(text);
+    await nested.evaluate((el: HTMLButtonElement) => el.click());
+    let nestedAfter = nestedBefore;
+    for (let i = 0; i < 20 && nestedAfter === nestedBefore; i++) {
+      await new Promise((r) => setTimeout(r, 50));
+      nestedAfter = await nested.evaluate(text);
+    }
+    console.log(
+      `nested: ${JSON.stringify(nestedBefore)} -> ${JSON.stringify(nestedAfter)}`,
+    );
+    if (nestedBefore !== "counts: 10") {
+      fail(`expected nested SSR "counts: 10", got ${nestedBefore}`);
+    }
+    if (nestedAfter !== "counts: 11") {
+      fail("nested island did not hydrate — Panel's client re-render failed");
+    }
+
     if (cspViolations.length > 0) fail("CSP violations reported");
 
     if (!failed) {

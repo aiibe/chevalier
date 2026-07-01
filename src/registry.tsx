@@ -29,6 +29,9 @@ interface Collector {
   ids: Map<string, number>;
   props: Record<string, unknown>[];
   propsDedup: Map<string, number>;
+  // Island-nesting depth; >0 means inside another island, so nested islands
+  // emit no marker (the outer one re-renders them on the client).
+  depth: number;
 }
 
 // renderToString is sync/single-threaded, so a module-level "current
@@ -44,6 +47,7 @@ export function collectIslands<T>(
     ids: new Map(),
     props: [],
     propsDedup: new Map(),
+    depth: 0,
   };
   currentCollector = collector;
   try {
@@ -78,12 +82,28 @@ function collectProps(props: Record<string, unknown>): number {
   return idx;
 }
 
+// Depth guards bracketing an island's children; pair correctly because
+// renderToString is sync + depth-first.
+const Enter = (): null => {
+  if (currentCollector) currentCollector.depth++;
+  return null;
+};
+const Leave = (): null => {
+  if (currentCollector) currentCollector.depth--;
+  return null;
+};
+
 /** `id` is the island's stable id (islandId from src/islands.ts). */
 export function island<P extends Record<string, unknown>>(
   Component: ComponentType<P>,
   id: string,
 ): ComponentType<P> {
   const Wrapped = (props: P): VNode => {
+    // Nested island: the outer island re-renders this subtree on the client, so
+    // emit it as plain HTML — no marker, no collected props, no depth change.
+    if (currentCollector && currentCollector.depth > 0) {
+      return h(Component, props as Record<string, unknown>) as VNode;
+    }
     // Rendering is the collection pass — record component + props indices.
     const c = collectComponent(id);
     const p = collectProps(props as Record<string, unknown>);
@@ -91,7 +111,9 @@ export function island<P extends Record<string, unknown>>(
       Fragment,
       null,
       h(Fragment, { UNSTABLE_comment: `${MARKER_PREFIX}:${c}:${p}` }),
+      h(Enter, null),
       h(Component, props as Record<string, unknown>),
+      h(Leave, null),
       h(Fragment, { UNSTABLE_comment: MARKER_CLOSE }),
     );
   };

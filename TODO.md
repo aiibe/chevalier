@@ -32,8 +32,8 @@
   HMR — islands reload-swap and lose state with no error. Surface a one-time
   warning, or document the required deps in the app template.
 
-- **Async / nested islands.** No island-in-island, no `Suspense`/async islands.
-  Fine for v0.
+- **Async islands.** No `Suspense`/async islands yet. Nested islands
+  (island-in-island) now work; async is fine to defer for v0.
 
 - **Dev middleware is minimal.** The handrolled dev SSR middleware (replacing
   `@hono/vite-dev-server`) in `src/vite.ts` covers the SSR-render path but not

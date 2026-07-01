@@ -56,6 +56,40 @@ Deno.test("hot-reload — full reload on route/layout, not islands", () => {
   assertEquals(sent, []);
 });
 
+// Island imports carry the extension + HMR `?t=` suffix but the map is keyed
+// extensionless. Regression: `.tsx` keys 500'd in dev.
+Deno.test("resolveId — island alias resolves with/without ext and ?t suffix", () => {
+  const dir = Deno.makeTempDirSync();
+  Deno.mkdirSync(`${dir}/app/islands`, { recursive: true });
+  Deno.writeTextFileSync(
+    `${dir}/app/islands/panel.tsx`,
+    "export default () => null;",
+  );
+
+  const p = corePlugin();
+  p.configResolved({ root: dir });
+
+  const expected = `${dir}/app/islands/panel.tsx`;
+  assertEquals(p.resolveId("chevalier-island:islands/panel"), expected);
+  assertEquals(p.resolveId("chevalier-island:islands/panel.tsx"), expected);
+  assertEquals(
+    p.resolveId("chevalier-island:islands/panel.tsx?t=123"),
+    expected,
+  );
+  // A miss must throw here, not fall through to Deno's loader.
+  // Regression: deleting an island while a stale importer lingered.
+  let threw = false;
+  try {
+    p.resolveId("chevalier-island:islands/missing");
+  } catch (e) {
+    threw = true;
+    assertEquals((e as Error).message.includes("islands/missing"), true);
+  }
+  assertEquals(threw, true, "missing island alias should throw");
+
+  Deno.removeSync(dir, { recursive: true });
+});
+
 // The plugin returns [core, prefresh]; both must be present so islands HMR.
 Deno.test("chevalier returns core + scoped prefresh plugins", () => {
   const plugins = chevalier({ appRoot: "./app" }) as AnyPlugin[];

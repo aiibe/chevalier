@@ -26,9 +26,8 @@ interface DevReq {
 }
 
 /**
- * Dev SSR middleware (replaces @hono/vite-dev-server): ssrLoadModule the entry,
- * run its Hono app's fetch, pipe the Response back, and inject Vite's HMR client
- * into HTML.
+ * Dev SSR middleware: ssrLoadModule the entry, run its Hono app's fetch, pipe
+ * the Response back, and inject Vite's HMR client into HTML.
  */
 function devMiddleware(
   server: ViteDevServer,
@@ -189,6 +188,25 @@ function shouldFullReload(file: string, appRoot: string): boolean {
   return rel.startsWith("routes/") || rel.includes("_layout");
 }
 
+// Minimal structural view of Vite's SSR EnvironmentModuleGraph — avoids
+// depending on the concrete type across Deno's split node_modules trees.
+type SsrModule = { importers: Iterable<SsrModule> };
+interface SsrModuleGraph {
+  getModuleById(id: string): SsrModule | undefined;
+  getModulesByFile(file: string): Set<SsrModule> | undefined;
+  invalidateModule(mod: SsrModule): void;
+  onFileDelete(file: string): void;
+}
+
+// Re-transform an island's SSR module and every SSR module that imports it, so a
+// changed/removed nested-island import doesn't linger in the importer's graph.
+function invalidateSsrImporters(ssr: SsrModuleGraph, file: string): void {
+  for (const mod of ssr.getModulesByFile(file) ?? []) {
+    for (const importer of mod.importers) ssr.invalidateModule(importer);
+    ssr.invalidateModule(mod);
+  }
+}
+
 function scopedPrefresh(appRoot: string, isServe: () => boolean): Plugin {
   return {
     name: "chevalier:prefresh",
@@ -284,11 +302,19 @@ export function chevalier(options: ChevalierOptions = {}): Plugin[] {
       // chevalier-island:<id> → the real island source, so Vite serves and HMRs
       // the actual file; the alias only prettifies the dev URL.
       if (id.startsWith(islandPrefix)) {
-        const islandKey = id.slice(islandPrefix.length);
+        // Island-to-island imports (and HMR) can carry the extension and a
+        // `?t=` suffix; the island map is keyed extensionless (islandId).
+        const raw = id.slice(islandPrefix.length).replace(/\?.*$/, "");
+        const islandKey = islandId(raw);
         const root = projectRoot || Deno.cwd();
         const islands = discoverIslands(`${root}/${appRootRel}`, appRootRel);
         const rel = islands[islandKey]; // e.g. "app/islands/counter.tsx"
         if (rel) return `${root}/${rel}`;
+        // We own this scheme: a miss must throw here, not fall through to
+        // Deno's loader (which only emits an opaque "Unsupported scheme" 500).
+        throw new Error(
+          `[chevalier] no island "${islandKey}" — was ${appRootRel}/${islandKey}.tsx deleted or renamed? Reload to clear stale imports.`,
+        );
       }
     },
 
@@ -337,6 +363,24 @@ export function chevalier(options: ChevalierOptions = {}): Plugin[] {
     },
 
     configureServer(server) {
+      // Watcher add/unlink bypass handleHotUpdate, so handle island
+      // add/remove here: the SSR graph would otherwise keep a stale island set.
+      const onIslandStructureChange = (file: string) => {
+        const rel = appRel(file, opts.appRoot);
+        if (rel === null || !isIsland(rel)) return;
+        const ssr = server.environments?.ssr?.moduleGraph;
+        if (!ssr) return;
+        // Forget the file, drop the virtual map (regenerates via load) and the
+        // island's importers so they re-transform without the stale import.
+        ssr.onFileDelete(file);
+        const virtual = ssr.getModuleById(resolvedVirtualId);
+        if (virtual) ssr.invalidateModule(virtual);
+        invalidateSsrImporters(ssr, file);
+        server.ws.send({ type: "full-reload" });
+      };
+      server.watcher.on("add", onIslandStructureChange);
+      server.watcher.on("unlink", onIslandStructureChange);
+
       // Post hook: our SSR app is the fallthrough, after Vite's own middlewares.
       return () => server.middlewares.use(devMiddleware(server, opts.entry));
     },
@@ -345,6 +389,13 @@ export function chevalier(options: ChevalierOptions = {}): Plugin[] {
       if (shouldFullReload(file, opts.appRoot)) {
         server.ws.send({ type: "full-reload" });
         return []; // swallow HMR — no partial module swap
+      }
+      // Island edit: prefresh handles the client, but the SSR module and its
+      // SSR importers must re-transform too, else the importer graph goes stale.
+      const rel = appRel(file, opts.appRoot);
+      if (rel !== null && isIsland(rel)) {
+        const ssr = server.environments?.ssr?.moduleGraph;
+        if (ssr) invalidateSsrImporters(ssr, file);
       }
     },
   };

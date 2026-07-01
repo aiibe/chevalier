@@ -75,6 +75,37 @@ Deno.test("no islands → empty ids", () => {
   assertEquals(ids, []);
 });
 
+Deno.test("nested island emits no marker; outer owns the subtree", () => {
+  const Inner = island(Leaf, "islands/inner");
+  const Outer = island(
+    (() => h("div", null, h(Inner, { label: "in" }))) as never,
+    "islands/outer",
+  );
+  const { html, ids, props } = collectIslands(() =>
+    renderToString(h(Outer, {}) as never)
+  );
+  // Only the outer island is collected + hydrated.
+  assertEquals(ids, ["islands/outer"]);
+  assertEquals(props, [{}]);
+  // One marker pair (outer's), and inner's content is inlined as plain HTML.
+  assertEquals(html.includes("<!--chevalier:0:0-->"), true);
+  assertEquals(html.match(/<!--chevalier:\d+:\d+-->/g)?.length, 1);
+  assertEquals(html.includes("<span>in</span>"), true);
+});
+
+Deno.test("depth restores after an island: a later sibling island still marks", () => {
+  const A = island(Leaf, "islands/a");
+  const B = island(Leaf, "islands/b");
+  // A is a leaf island; B is a sibling, not nested — both must be collected.
+  const { ids, html } = collectIslands(() =>
+    renderToString(
+      h("div", null, h(A, { label: "a" }), h(B, { label: "b" })) as never,
+    )
+  );
+  assertEquals(ids, ["islands/a", "islands/b"]);
+  assertEquals(html.match(/<!--chevalier:\d+:\d+-->/g)?.length, 2);
+});
+
 Deno.test("collector restores previous on nesting, not null", () => {
   const A = island(Leaf, "islands/a");
   const B = island(Leaf, "islands/b");
