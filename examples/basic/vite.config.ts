@@ -1,4 +1,4 @@
-import { defineConfig } from "vite";
+import { defineConfig, type PluginOption } from "vite";
 import deno from "@deno/vite-plugin";
 import { chevalier } from "chevalier";
 
@@ -14,8 +14,14 @@ export default defineConfig(({ isSsrBuild }) => ({
     // Local src, not the import map's bare specifier; Vite/Rollup need real paths.
     // Slim entry: `chevalier` (mod.ts) would drag the Vite plugin into the browser bundle.
     alias: [
-      { find: "chevalier/client", replacement: fromHere("../../src/client.ts") },
-      { find: "chevalier/registry", replacement: fromHere("../../src/registry.tsx") },
+      {
+        find: "chevalier/client",
+        replacement: fromHere("../../src/client.ts"),
+      },
+      {
+        find: "chevalier/registry",
+        replacement: fromHere("../../src/registry.tsx"),
+      },
       { find: "chevalier", replacement: fromHere("../../src/mod.ts") },
       // Map baked npm:preact@x[/sub] specifiers back to the import-map name so the
       // jsx-runtime subpath (jsxs/jsxDEV) resolves instead of collapsing to bare preact.
@@ -33,7 +39,12 @@ export default defineConfig(({ isSsrBuild }) => ({
   // chevalier before deno so it claims virtual:chevalier-islands before the
   // deno loader rejects the virtual: scheme. chevalier also serves the SSR entry
   // in dev itself (its configureServer hook).
-  plugins: [chevalier({ appRoot: "./app", entry: "/app/server.ts" }), deno()],
+  // Cast: chevalier and @deno/vite-plugin resolve Vite's Plugin type through
+  // separate node_modules trees under Deno, so the IDE sees them as unrelated.
+  plugins: [
+    chevalier({ appRoot: "./app", entry: "/app/server.ts" }),
+    deno(),
+  ] as PluginOption[],
   build: isSsrBuild
     ? {
       // SSR entry passed on the CLI; `build.ssr` in config wasn't applied as the rollup input here.

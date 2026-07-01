@@ -80,8 +80,12 @@ try {
     // Leave the jsr: pin intact; assert every sub-path export resolves against
     // the *published* package (catches a template referencing an export the
     // published version doesn't have, e.g. "Unknown export './client'").
-    const map = JSON.parse(await Deno.readTextFile(denoJsonPath))
-      .imports as Record<string, string>;
+    // Disable the minimum-dependency-age guard: runs right after a publish, so
+    // the pinned version is newer than Deno's default cutoff and gets rejected.
+    const cfg = JSON.parse(await Deno.readTextFile(denoJsonPath));
+    cfg.minimumDependencyAge = 0;
+    await Deno.writeTextFile(denoJsonPath, JSON.stringify(cfg, null, 2) + "\n");
+    const map = cfg.imports as Record<string, string>;
     for (
       const spec of ["chevalier", "chevalier/client", "chevalier/registry"]
     ) {
@@ -92,6 +96,7 @@ try {
       const check = await run([
         "deno",
         "eval",
+        "--minimum-dependency-age=0",
         `try { await import(${JSON.stringify(map[spec])}); }` +
         ` catch (e) { console.error(String(e)); Deno.exit(1); }`,
       ], { cwd: APP });

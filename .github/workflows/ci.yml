@@ -33,12 +33,11 @@ jobs:
       - name: Init scaffold smoke test
         run: deno task --config init/deno.json smoke
 
-  # Verifies a scaffold resolves against the *published* @chevalier/core,
-  # including its ./client and ./registry sub-path exports. Only passes once the
-  # pinned version is on JSR — run after publishing, not on every PR.
+  # Smoke-tests a scaffold against the *published* @chevalier/core. Skips PRs: a
+  # PR may bump the version pin before that version is on JSR.
   smoke-published:
     runs-on: ubuntu-latest
-    if: github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
     steps:
       - uses: actions/checkout@v4
 

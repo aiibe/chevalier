@@ -38,7 +38,7 @@ const denoJson = `{
 }
 `;
 
-const viteConfig = `import { defineConfig } from "vite";
+const viteConfig = `import { defineConfig, type PluginOption } from "vite";
 import deno from "@deno/vite-plugin";
 import { chevalier } from "chevalier";
 
@@ -60,8 +60,12 @@ export default defineConfig(({ isSsrBuild }) => ({
   ssr: { noExternal: true },
   optimizeDeps: { noDiscovery: true, include: [] },
   // chevalier before deno so it claims virtual:chevalier-islands before the
-  // deno loader rejects the virtual: scheme.
-  plugins: [chevalier({ appRoot: "./app", entry: "/app/server.ts" }), deno()],
+  // deno loader rejects the virtual: scheme. Cast: the two plugins resolve
+  // Vite's Plugin type through separate node_modules trees under Deno.
+  plugins: [
+    chevalier({ appRoot: "./app", entry: "/app/server.ts" }),
+    deno(),
+  ] as PluginOption[],
   build: isSsrBuild
     ? { outDir: "dist/server" }
     : {

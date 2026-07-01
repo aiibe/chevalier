@@ -2,23 +2,20 @@
 
 ## Nice-to-have
 
+- **Migrate to Vite 8.** Vite 8 replaces esbuild with Oxc as the default
+  transformer, so the `esbuild: { jsx, jsxImportSource }` in the `config` hook
+  (`src/vite.ts`) and the template no longer type-check. Port that JSX config to
+  the `oxc` option and re-run full tests + smoke before widening the `^7` pin;
+  hydration parity with `preact-render-to-string` depends on getting it right.
+
 - **`@chevalier/init` template drifts from `examples/basic`.** The scaffolder
-  embeds its files as string constants in `init/templates.ts`, hand-kept in sync
-  with `examples/basic`. If the example's wiring changes (vite config,
-  server.ts, layout), the template silently goes stale. Deferred until after the
-  first publish — do it next iteration, not before shipping 0.0.2. Direction:
+  hand-keeps its files as string constants in `init/templates.ts`, so the
+  template silently goes stale when the example's wiring changes. Direction:
   generate `templates.ts` _from_ `examples/basic` via a prepublish step that
   applies declared transforms (local-src imports → `jsr:@chevalier/core`, drop
-  the `$clock` Rule-B demo, strip PLAN§/Rule-A comments, retitle), then verifies
-  the committed file is up to date. The files aren't copy-identical, so a plain
-  copy would ship broken `../../src` paths — the transforms are the work.
-
-- **Publish `@chevalier/core@0.0.2`.** The scaffold pins `^0.0.2` (for the
-  `./client` + `./registry` sub-path exports added to `deno.json`), but only
-  `0.0.1` is on JSR and it lacks those exports. Until 0.0.2 is published a fresh
-  scaffold fails with "Unknown export './client'". The `smoke-published` CI job
-  (`SMOKE_JSR=1`, `workflow_dispatch`) verifies the published package once it's
-  up — run it after publishing.
+  the `$clock` demo, strip PLAN§ comments) and verifies the committed file is up
+  to date — a plain copy would ship broken `../../src` paths, so the transforms
+  are the work.
 
 - **Hydration check not in CI.** `examples/basic` has a headless-Chrome
   hydration smoke test (`deno task check:hydration`) that's macOS-Chrome-path
