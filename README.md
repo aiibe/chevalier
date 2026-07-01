@@ -1,10 +1,24 @@
+<p align="center">
+  <img src="./assets/chevalier.png" alt="Chevalier mascot" width="160" />
+</p>
+
+<div align="center">
+
 # Chevalier
 
-[![JSR](https://jsr.io/badges/@chevalier/core)](https://jsr.io/@chevalier/core)
-[![JSR Score](https://jsr.io/badges/@chevalier/core/score)](https://jsr.io/@chevalier/core)
-[![Built with Deno](https://img.shields.io/badge/Built%20with-Deno-000?logo=deno&logoColor=white)](https://deno.com)
-[![Preact](https://img.shields.io/badge/view-Preact-673ab8?logo=preact&logoColor=white)](https://preactjs.com)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue)](./LICENSE)
+<h3><em>A file-routed Deno meta-framework<br />that ships islands, not bundles.</em></h3>
+
+</div>
+
+<br />
+
+<p align="center">
+  <a href="https://jsr.io/@chevalier/core"><img src="https://jsr.io/badges/@chevalier/core" alt="JSR" /></a>
+  <a href="https://jsr.io/@chevalier/core"><img src="https://jsr.io/badges/@chevalier/core/score" alt="JSR Score" /></a>
+  <a href="https://deno.com"><img src="https://img.shields.io/badge/Built%20with-Deno-000?logo=deno&logoColor=white" alt="Built with Deno" /></a>
+  <a href="https://preactjs.com"><img src="https://img.shields.io/badge/view-Preact-673ab8?logo=preact&logoColor=white" alt="Preact" /></a>
+  <a href="./LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue" alt="License: MIT" /></a>
+</p>
 
 **Chevalier** (*knight* in French) is a small, file-routed Deno meta-framework
 that renders with **Preact** and ships islands, not bundles.

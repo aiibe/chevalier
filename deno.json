@@ -4,7 +4,7 @@
   "license": "MIT",
   "exports": "./src/mod.ts",
   "publish": {
-    "include": ["src/**/*.ts", "src/**/*.tsx", "README.md", "LICENSE", "deno.json"],
+    "include": ["src/**/*.ts", "src/**/*.tsx", "README.md", "LICENSE", "deno.json", "assets/chevalier.png"],
     "exclude": ["src/**/*.test.ts", "src/**/*.test.tsx", "examples/"]
   },
   "tasks": {
