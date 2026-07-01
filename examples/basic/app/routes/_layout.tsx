@@ -4,7 +4,7 @@
 
 import type { LayoutProps } from "chevalier";
 
-export default function Layout({ childrenHtml, boot = "" }: LayoutProps) {
+export default function Layout({ childrenHtml, boot = "", nonce }: LayoutProps) {
   return (
     <html lang="en">
       <head>
@@ -21,7 +21,13 @@ export default function Layout({ childrenHtml, boot = "" }: LayoutProps) {
           dangerouslySetInnerHTML={{ __html: childrenHtml }}
         />
         {boot
-          ? <script type="module" dangerouslySetInnerHTML={{ __html: boot }} />
+          ? (
+            <script
+              type="module"
+              nonce={nonce}
+              dangerouslySetInnerHTML={{ __html: boot }}
+            />
+          )
           : null}
       </body>
     </html>

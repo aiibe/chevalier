@@ -4,6 +4,8 @@
 // vite/client augments ImportMeta with `glob`/`env`, which Deno doesn't know.
 /// <reference types="vite/client" />
 
+import { Hono } from "hono";
+import { NONCE, secureHeaders } from "hono/secure-headers";
 import { createApp, resolveIslandUrls } from "chevalier";
 import type { RouteModule, ViteManifest } from "chevalier";
 // Dev URLs; resolveIslandUrls rewrites to hashed chunks for build.
@@ -27,7 +29,21 @@ const manifest = import.meta.env.PROD
   )[0]?.default)
   : undefined;
 
+// Prod-only: Vite's dev server injects an un-nonced <script src="/@vite/client">
+// that any restrictive script-src blocks, breaking HMR + hydration in dev.
+// NONCE feeds the same per-request nonce to the CSP and (via ctx) the boot script.
+const base = new Hono();
+if (import.meta.env.PROD) {
+  base.use(
+    "*",
+    secureHeaders({
+      contentSecurityPolicy: { scriptSrc: [NONCE] },
+    }),
+  );
+}
+
 const app = createApp({
+  app: base,
   routes,
   layout: Layout,
   notFound: NotFound,

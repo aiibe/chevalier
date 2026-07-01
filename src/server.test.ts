@@ -151,6 +151,53 @@ Deno.test("island page emits a scoped boot; island-free page emits none", async 
   assertEquals(about.includes("<script"), false); // zero JS
 });
 
+Deno.test("boot <script> carries the secureHeaders nonce when set", async () => {
+  const { island } = await import("./registry.tsx");
+  const Counter = island(() => h("span", null, "c"), "islands/counter");
+
+  // Stand in for hono's secureHeaders middleware, which sets this context key.
+  // Registered on the base app *before* createApp mounts routes so it runs first.
+  const base = new Hono();
+  base.use("*", async (c, next) => {
+    (c.set as (k: string, v: unknown) => void)(
+      "secureHeadersNonce",
+      "test-nonce-123",
+    );
+    await next();
+  });
+  const app = createApp({
+    app: base,
+    routes: {
+      "/app/routes/index.tsx": () =>
+        Promise.resolve({ default: () => h(Counter, {}) }),
+    },
+    islandUrls: { "islands/counter": "/app/islands/counter.tsx" },
+  });
+
+  const html = await (await app.request("/")).text();
+  assertEquals(
+    html.includes('<script type="module" nonce="test-nonce-123"'),
+    true,
+  );
+});
+
+Deno.test("boot <script> omits the nonce attr when none is set", async () => {
+  const { island } = await import("./registry.tsx");
+  const Counter = island(() => h("span", null, "c"), "islands/counter");
+
+  const app = createApp({
+    routes: {
+      "/app/routes/index.tsx": () =>
+        Promise.resolve({ default: () => h(Counter, {}) }),
+    },
+    islandUrls: { "islands/counter": "/app/islands/counter.tsx" },
+  });
+
+  const html = await (await app.request("/")).text();
+  assertEquals(html.includes('<script type="module"'), true);
+  assertEquals(html.includes("nonce"), false);
+});
+
 Deno.test("_error page renders in the layout when a route throws", async () => {
   const app = createApp({
     routes: {

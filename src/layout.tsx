@@ -10,12 +10,14 @@ export interface LayoutProps {
   childrenHtml: string;
   /** Generated boot module source; "" for a page with no islands. */
   boot?: string;
+  /** Per-request CSP nonce for the inline boot <script>; undefined → no attr. */
+  nonce?: string;
   title?: string;
   head?: VNode | VNode[];
 }
 
 export function Layout(
-  { childrenHtml, boot = "", title = "Chevalier", head }: LayoutProps,
+  { childrenHtml, boot = "", nonce, title = "Chevalier", head }: LayoutProps,
 ): VNode {
   return (
     <html lang="en">
@@ -34,6 +36,7 @@ export function Layout(
           ? (
             <script
               type="module"
+              nonce={nonce}
               dangerouslySetInnerHTML={{ __html: boot }}
             />
           )

@@ -1,15 +1,5 @@
 # TODO
 
-## High
-
-- **CSP nonce on the inline boot script.** `buildBoot` emits a bare
-  `<script type="module">` (`src/server.ts` / `src/layout.tsx`), so it's blocked
-  under a strict `Content-Security-Policy` that forbids unsafe inline scripts —
-  Fresh stamps a per-request nonce on every inline script it emits. Thread a
-  per-request nonce from `createApp`'s dispatch into `buildBoot` + the layout
-  `<script>`, and let the app supply/read it (generated value or request header)
-  so it matches the CSP header it sets.
-
 ## Nice-to-have
 
 - **Nested layouts.** Only a single root `_layout.tsx` works, via the explicit

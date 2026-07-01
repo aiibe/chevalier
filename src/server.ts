@@ -73,6 +73,7 @@ export function createApp(options: CreateAppOptions): Hono {
   const renderDoc = (
     Page: ComponentType<Record<string, unknown>>,
     props: Record<string, unknown>,
+    nonce?: string,
   ): string => {
     const { html: childrenHtml, ids, props: islandProps } = collectIslands(() =>
       renderToString(h(Page, props) as VNode)
@@ -80,10 +81,17 @@ export function createApp(options: CreateAppOptions): Hono {
     const boot = buildBoot(ids, islandProps, islandUrls, clientEntry);
     const doc = h(
       Layout as ComponentType<LayoutProps>,
-      { childrenHtml, boot } satisfies LayoutProps,
+      { childrenHtml, boot, nonce } satisfies LayoutProps,
     ) as VNode;
     return "<!DOCTYPE html>" + renderToString(doc);
   };
+
+  // Reads the key Hono's `secureHeaders` middleware sets, so a `script-src
+  // 'nonce-…'` directive matches the value stamped on the boot <script>.
+  const readNonce = (c: Context): string | undefined =>
+    (c.get as (k: string) => unknown)("secureHeadersNonce") as
+      | string
+      | undefined;
 
   const dispatch = (route: Route) => async (c: Context) => {
     const mod = await route.load();
@@ -108,7 +116,7 @@ export function createApp(options: CreateAppOptions): Hono {
       return c.notFound();
     }
 
-    const html = renderDoc(Page, { params: c.req.param() });
+    const html = renderDoc(Page, { params: c.req.param() }, readNonce(c));
     return c.html(html);
   };
 
@@ -126,13 +134,15 @@ export function createApp(options: CreateAppOptions): Hono {
   // `c.notFound()`; `_error` catches thrown errors. Both render in the layout.
   const NotFound = options.notFound;
   if (NotFound) {
-    app.notFound((c) => c.html(renderDoc(NotFound, {}), 404));
+    app.notFound((c) => c.html(renderDoc(NotFound, {}, readNonce(c)), 404));
   }
   const ErrorPage = options.error as
     | ComponentType<Record<string, unknown>>
     | undefined;
   if (ErrorPage) {
-    app.onError((err, c) => c.html(renderDoc(ErrorPage, { error: err }), 500));
+    app.onError((err, c) =>
+      c.html(renderDoc(ErrorPage, { error: err }, readNonce(c)), 500)
+    );
   }
 
   return app;
