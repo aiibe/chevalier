@@ -121,6 +121,16 @@ try {
     stderr: "piped",
   }).spawn();
 
+  // Drain the dev server's output so we can print it if boot fails; otherwise a
+  // crashed server just reads as "never became reachable" with no cause.
+  const decoder = new TextDecoder();
+  let devLog = "";
+  const capture = (stream: ReadableStream<Uint8Array>) =>
+    (async () => {
+      for await (const chunk of stream) devLog += decoder.decode(chunk);
+    })();
+  const draining = Promise.all([capture(dev.stdout), capture(dev.stderr)]);
+
   try {
     // Wait for readiness by polling the port, not by scraping log lines.
     let ready = false;
@@ -136,6 +146,9 @@ try {
     }
     if (!ready) {
       fail("dev server never became reachable");
+      console.error("--- dev server output ---");
+      console.error(devLog || "(no output captured)");
+      console.error("--- end dev server output ---");
     } else {
       ok("dev server up");
 
@@ -174,10 +187,13 @@ try {
       } else ok("unmatched route → 404");
     }
   } finally {
-    dev.kill("SIGTERM");
+    try {
+      dev.kill("SIGTERM");
+    } catch { /* already terminated */ }
     try {
       await dev.status;
     } catch { /* already gone */ }
+    await draining.catch(() => {});
   }
 
   // 4. Build: client + SSR output must exist.

@@ -2,6 +2,7 @@
 // Routes/_layout full-reload (server-owned SSR); islands HMR via prefresh.
 
 import type { Connect, Plugin, ViteDevServer } from "vite";
+import { fileURLToPath } from "node:url";
 import { isIsland, islandId, normalizePath } from "./islands.ts";
 import { CLIENT_NAME } from "./manifest.ts";
 
@@ -215,6 +216,10 @@ export function chevalier(options: ChevalierOptions = {}): Plugin[] {
   // /@id/chevalier:client and /@id/chevalier-island:<id>. The \0 convention
   // would surface as __x00__ in those URLs.
   const clientVirtualId = "chevalier:client";
+  // Registry must be ONE instance so the island wrapper sees the collector
+  // server.ts sets (see src/registry.tsx); a bare specifier splits it in two.
+  const registryVirtualId = "chevalier:registry";
+  const registryUrl = import.meta.resolve("./registry.tsx");
   // Prefix marking a per-island virtual alias → its real source file on disk.
   const islandPrefix = "chevalier-island:";
   const appRootRel = opts.appRoot.replace(/^\.?\//, "");
@@ -269,6 +274,13 @@ export function chevalier(options: ChevalierOptions = {}): Plugin[] {
     resolveId(id) {
       if (id === virtualId) return resolvedVirtualId;
       if (id === clientVirtualId) return id; // self-resolve, no \0 (see above)
+      // Local checkout resolves to file:// — return the plain path Vite loads
+      // directly; published is https://jsr.io/… — hand off to the deno plugin.
+      if (id === registryVirtualId) {
+        return registryUrl.startsWith("file://")
+          ? fileURLToPath(registryUrl)
+          : this.resolve(registryUrl);
+      }
       // chevalier-island:<id> → the real island source, so Vite serves and HMRs
       // the actual file; the alias only prettifies the dev URL.
       if (id.startsWith(islandPrefix)) {
@@ -316,7 +328,9 @@ export function chevalier(options: ChevalierOptions = {}): Plugin[] {
         });`;
       return {
         code:
-          `import { island as __chevalierIsland } from "chevalier/registry";\n` +
+          `import { island as __chevalierIsland } from ${
+            JSON.stringify(registryVirtualId)
+          };\n` +
           rewritten,
         map: null,
       };

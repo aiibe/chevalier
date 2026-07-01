@@ -2,7 +2,7 @@
 // examples/basic; that example is the reference for the real framework wiring.
 // {{CORE}} is replaced with the pinned @chevalier/core version spec at write time.
 
-export const CORE_VERSION = "^0.0.2";
+export const CORE_VERSION = "^0.0.3";
 
 export interface TemplateFile {
   path: string;
@@ -23,7 +23,8 @@ const denoJson = `{
     "preact": "npm:preact@^10.24.0",
     "preact/": "npm:/preact@^10.24.0/",
     "preact-render-to-string": "npm:preact-render-to-string@^6.5.0",
-    "vite": "npm:vite@^5.4.0",
+    "vite": "npm:vite@^7.0.0",
+    "@deno/vite-plugin": "npm:@deno/vite-plugin@^2.0.2",
     "@prefresh/vite": "npm:@prefresh/vite@^2.4.0",
     "@prefresh/core": "npm:@prefresh/core@^1.5.0",
     "@prefresh/utils": "npm:@prefresh/utils@^1.2.0"
@@ -38,31 +39,20 @@ const denoJson = `{
 `;
 
 const viteConfig = `import { defineConfig } from "vite";
-import { fileURLToPath } from "node:url";
+import deno from "@deno/vite-plugin";
 import { chevalier } from "chevalier";
 
-// Deno resolves the bare \`chevalier\` specifier via the import map, but Vite's
-// SSR loader and Rollup resolve through Node — they need explicit aliases to a
-// plain filesystem path (a file:// URL from import.meta.resolve won't resolve).
-const resolveDep = (spec: string) => fileURLToPath(import.meta.resolve(spec));
-
-// Client/SSR builds must not share an outDir (each empties it).
+// @deno/vite-plugin resolves jsr:/npm: specifiers via Deno's loader; its hooks
+// only engage on Vite 7 (Environment API). Client/SSR need separate outDirs.
 export default defineConfig(({ isSsrBuild }) => ({
+  // One Preact instance across SSR + islands is required for hydration.
   resolve: {
-    alias: {
-      "chevalier/client": resolveDep("chevalier/client"),
-      "chevalier/registry": resolveDep("chevalier/registry"),
-      "chevalier": resolveDep("chevalier"),
-    },
-    // One Preact instance across SSR + islands is required for hydration.
     dedupe: ["preact", "preact/hooks", "preact-render-to-string", "hono"],
   },
-  ssr: {
-    noExternal: ["chevalier", "hono", "preact", "preact-render-to-string"],
-  },
   optimizeDeps: { noDiscovery: true, include: [] },
-  // chevalier serves the SSR entry in dev itself (its configureServer hook).
-  plugins: [chevalier({ appRoot: "./app", entry: "/app/server.ts" })],
+  // chevalier before deno so it claims virtual:chevalier-islands before the
+  // deno loader rejects the virtual: scheme.
+  plugins: [chevalier({ appRoot: "./app", entry: "/app/server.ts" }), deno()],
   build: isSsrBuild
     ? { outDir: "dist/server" }
     : {

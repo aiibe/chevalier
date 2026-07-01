@@ -1,6 +1,6 @@
 {
   "name": "@chevalier/core",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "license": "MIT",
   "exports": {
     ".": "./src/mod.ts",
@@ -30,7 +30,7 @@
     "preact": "npm:preact@^10.24.0",
     "preact/": "npm:/preact@^10.24.0/",
     "preact-render-to-string": "npm:preact-render-to-string@^6.5.0",
-    "vite": "npm:vite@^5.4.0",
+    "vite": "npm:vite@^7.0.0",
     "@prefresh/vite": "npm:@prefresh/vite@^2.4.0"
   },
   "compilerOptions": {
