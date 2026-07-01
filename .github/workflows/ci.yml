@@ -28,6 +28,11 @@ jobs:
       - name: Core tests
         run: deno test -A
 
+      # templates.gen.ts is committed but generated from init/templates/; fail if
+      # someone edited a template without regenerating (deno task gen).
+      - name: Init templates up to date
+        run: deno task --config init/deno.json gen:check
+
       # Scaffolds a fresh app, repoints it at the local core (the code in this
       # PR, not the registry), and asserts dev + build work.
       - name: Init scaffold smoke test

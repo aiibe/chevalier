@@ -2,7 +2,7 @@
 //   deno run -A jsr:@chevalier/init my-app
 // Writes the template into <dir> (created if missing), then prints next steps.
 
-import { templateFiles } from "./templates.ts";
+import { templateFiles } from "./templates.gen.ts";
 
 const RESET = "\x1b[0m";
 const BOLD = "\x1b[1m";

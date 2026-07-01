@@ -1,0 +1,57 @@
+name: Publish
+
+# Tag-triggered JSR publish. Per-package prefixes so core and init release
+# independently: push `core-vX.Y.Z` or `init-vX.Y.Z`. The tagged version must
+# match the package's deno.json (guard below) — JSR versions are immutable, so a
+# mismatch would publish the wrong number or fail outright.
+on:
+  push:
+    tags:
+      - "core-v*"
+      - "init-v*"
+
+permissions:
+  contents: read
+  id-token: write # OIDC token for JSR (no secret needed; package linked to repo)
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      # Map the tag prefix → package dir, and assert the tag's version equals the
+      # package's deno.json version before publishing.
+      - name: Resolve package from tag
+        id: pkg
+        run: |
+          tag="${GITHUB_REF_NAME}"
+          case "$tag" in
+            core-v*) dir="." ; version="${tag#core-v}" ;;
+            init-v*) dir="init" ; version="${tag#init-v}" ;;
+            *) echo "::error::unrecognized tag $tag"; exit 1 ;;
+          esac
+          manifest="${dir}/deno.json"
+          declared="$(deno eval "console.log(JSON.parse(Deno.readTextFileSync('${manifest}')).version)")"
+          if [ "$declared" != "$version" ]; then
+            echo "::error::tag $tag ($version) != $manifest version ($declared)"
+            exit 1
+          fi
+          echo "dir=$dir" >> "$GITHUB_OUTPUT"
+          echo "publishing $manifest @ $version"
+
+      # Gate publish on the same checks CI runs, against the tagged commit.
+      - name: Format check
+        run: deno fmt --check
+      - name: Lint
+        run: deno lint
+      - name: Core tests
+        run: deno test -A
+
+      - name: Publish to JSR
+        working-directory: ${{ steps.pkg.outputs.dir }}
+        run: deno publish

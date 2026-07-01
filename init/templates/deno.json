@@ -1,0 +1,27 @@
+{
+  "tasks": {
+    "dev": "vite",
+    "build": "vite build && vite build --ssr app/server.ts",
+    "preview": "vite preview"
+  },
+  "imports": {
+    "chevalier": "jsr:@chevalier/core@{{CORE}}",
+    "chevalier/client": "jsr:@chevalier/core@{{CORE}}/client",
+    "chevalier/registry": "jsr:@chevalier/core@{{CORE}}/registry",
+    "hono": "npm:hono@^4.6.0",
+    "preact": "npm:preact@^10.24.0",
+    "preact/": "npm:/preact@^10.24.0/",
+    "preact-render-to-string": "npm:preact-render-to-string@^6.5.0",
+    "vite": "npm:vite@^7.0.0",
+    "@deno/vite-plugin": "npm:@deno/vite-plugin@^2.0.2",
+    "@prefresh/vite": "npm:@prefresh/vite@^2.4.0",
+    "@prefresh/core": "npm:@prefresh/core@^1.5.0",
+    "@prefresh/utils": "npm:@prefresh/utils@^1.2.0"
+  },
+  "nodeModulesDir": "auto",
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "jsxImportSource": "preact",
+    "lib": ["dom", "dom.iterable", "deno.ns", "esnext"]
+  }
+}
