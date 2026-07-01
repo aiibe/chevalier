@@ -1,0 +1,52 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: Format check
+        run: deno fmt --check
+
+      - name: Lint
+        run: deno lint
+
+      - name: Core tests
+        run: deno test -A
+
+      # Scaffolds a fresh app, repoints it at the local core (the code in this
+      # PR, not the registry), and asserts dev + build work.
+      - name: Init scaffold smoke test
+        run: deno task --config init/deno.json smoke
+
+  # Verifies a scaffold resolves against the *published* @chevalier/core,
+  # including its ./client and ./registry sub-path exports. Only passes once the
+  # pinned version is on JSR — run after publishing, not on every PR.
+  smoke-published:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: Init scaffold smoke test (published core)
+        env:
+          SMOKE_JSR: "1"
+        run: deno run -A init/scripts/smoke.ts

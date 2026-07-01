@@ -76,7 +76,9 @@ try {
       after = await button.evaluate(text);
     }
 
-    console.log(`button: ${JSON.stringify(before)} -> ${JSON.stringify(after)}`);
+    console.log(
+      `button: ${JSON.stringify(before)} -> ${JSON.stringify(after)}`,
+    );
     console.log(`CSP violations: ${cspViolations.length}`);
     cspViolations.forEach((e) => console.log(`  - ${e}`));
 
@@ -86,7 +88,9 @@ try {
     }
     if (cspViolations.length > 0) fail("CSP violations reported");
 
-    if (!failed) console.log("\nPASS: island hydrated under CSP, no violations");
+    if (!failed) {
+      console.log("\nPASS: island hydrated under CSP, no violations");
+    }
   } finally {
     await browser.close();
   }

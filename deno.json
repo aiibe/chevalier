@@ -1,10 +1,21 @@
 {
   "name": "@chevalier/core",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "license": "MIT",
-  "exports": "./src/mod.ts",
+  "exports": {
+    ".": "./src/mod.ts",
+    "./client": "./src/client.ts",
+    "./registry": "./src/registry.tsx"
+  },
   "publish": {
-    "include": ["src/**/*.ts", "src/**/*.tsx", "README.md", "LICENSE", "deno.json", "assets/chevalier.png"],
+    "include": [
+      "src/**/*.ts",
+      "src/**/*.tsx",
+      "README.md",
+      "LICENSE",
+      "deno.json",
+      "assets/chevalier.png"
+    ],
     "exclude": ["src/**/*.test.ts", "src/**/*.test.tsx", "examples/"]
   },
   "tasks": {

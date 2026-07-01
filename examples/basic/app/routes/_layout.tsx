@@ -4,7 +4,9 @@
 
 import type { LayoutProps } from "chevalier";
 
-export default function Layout({ childrenHtml, boot = "", nonce }: LayoutProps) {
+export default function Layout(
+  { childrenHtml, boot = "", nonce }: LayoutProps,
+) {
   return (
     <html lang="en">
       <head>

@@ -13,8 +13,8 @@ function basename(p: string): string {
 
 /**
  * True iff `path` (app-root-relative) is an island.
- * Rule A: islands/​**​/*.{tsx,jsx} (recursive, `islands` reserved at any depth).
- * Rule B: routes/​**​/$*.{tsx,jsx} (leading `$` on the filename).
+ * Rule A: any `.tsx`/`.jsx` under `islands/` (reserved at any depth).
+ * Rule B: any `$`-prefixed `.tsx`/`.jsx` filename under `routes/`.
  * Exclusions take precedence over both rules.
  */
 export function isIsland(path: string): boolean {

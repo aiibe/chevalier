@@ -1,0 +1,13 @@
+{
+  "name": "@chevalier/init",
+  "version": "0.0.1",
+  "license": "MIT",
+  "exports": "./mod.ts",
+  "publish": {
+    "include": ["mod.ts", "templates.ts", "README.md"]
+  },
+  "tasks": {
+    "start": "deno run -A mod.ts",
+    "smoke": "deno run -A scripts/smoke.ts"
+  }
+}

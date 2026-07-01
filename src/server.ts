@@ -40,7 +40,7 @@ type Loader<T> = () => Promise<T>;
 export interface CreateAppOptions {
   /**
    * Route modules, app-root-relative path → loader. In Vite this is produced
-   * by `import.meta.glob("/app/routes/**​/*.{tsx,jsx,ts}")`.
+   * by an `import.meta.glob` over `app/routes` (all `.tsx`/`.jsx`/`.ts`).
    */
   routes: Record<string, Loader<RouteModule>>;
   /** Optional layout override (default export of app/routes/_layout.tsx). */

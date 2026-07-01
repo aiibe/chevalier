@@ -64,8 +64,10 @@ Deno.test("createRoutes filters non-route files", () => {
 Deno.test("catch-all route matches in Hono", async () => {
   const { Hono } = await import("hono");
   const app = new Hono();
-  app.get(fileToPath("routes/docs/[...rest].tsx"), (c) =>
-    c.text(c.req.param("rest") ?? ""));
+  app.get(
+    fileToPath("routes/docs/[...rest].tsx"),
+    (c) => c.text(c.req.param("rest") ?? ""),
+  );
   const res = await app.request("/docs/a/b/c");
   assertEquals(res.status, 200);
   assertEquals(await res.text(), "a/b/c");

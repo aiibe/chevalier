@@ -20,7 +20,7 @@
   <a href="./LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue" alt="License: MIT" /></a>
 </p>
 
-**Chevalier** (*knight* in French) is a small, file-routed Deno meta-framework
+**Chevalier** (_knight_ in French) is a small, file-routed Deno meta-framework
 that renders with **Preact** and ships islands, not bundles.
 
 It keeps Hono for the HTTP layer and brings a Preact view layer. A page with no
@@ -44,9 +44,10 @@ export default function Home() {
 ## Features
 
 - 🗂️ **File-based routing.** `routes/index.tsx` → `/`, `blog/[slug].tsx` →
-  `/blog/:slug`, `docs/[...rest].tsx` catch-all. Familiar conventions, no config.
+  `/blog/:slug`, `docs/[...rest].tsx` catch-all. Familiar conventions, no
+  config.
 - 🏝️ **Per-page islands.** Each page ships only the JS for the islands it
-  actually rendered. No islands, no `<script>`. An island is declared by *path*,
+  actually rendered. No islands, no `<script>`. An island is declared by _path_,
   never a wrapper in your code.
 - ⚡ **Split hot-reload.** Islands hot-update in place with state preserved
   (Preact Fast Refresh). Route and layout edits force a full reload.
@@ -56,7 +57,19 @@ export default function Home() {
 
 ## Getting started
 
-Add Chevalier to your own project.
+Scaffold a fresh app in one command:
+
+```sh
+deno run -A jsr:@chevalier/init my-app
+cd my-app
+deno install
+deno task dev
+```
+
+Open the printed URL. You get a working app with a page, an island, a static
+page, and a `/api` handler — edit the island and it hot-updates in place.
+
+Or add Chevalier to an existing project:
 
 ```sh
 deno add jsr:@chevalier/core
@@ -110,7 +123,7 @@ method. Its routes are **file-relative**. A handler at `routes/api.ts` declares
 import { Hono } from "hono";
 
 export const app = new Hono()
-  .get("/", (c) => c.json({ ok: true }))            // GET  /api
+  .get("/", (c) => c.json({ ok: true })) // GET  /api
   .post("/echo", async (c) => c.json({ echo: await c.req.json() })); // POST /api/echo
 ```
 
@@ -119,10 +132,10 @@ export const app = new Hono()
 An island is a component that hydrates on the client. Make one by putting it in
 either place. There is no `island()` wrapper. Its **default export** hydrates.
 
-| Where                        | Example                         |
-| ---------------------------- | ------------------------------- |
-| **Under `app/islands/`**     | `app/islands/counter.tsx`       |
-| **`$`-prefixed, colocated**  | `app/routes/blog/$comments.tsx` |
+| Where                       | Example                         |
+| --------------------------- | ------------------------------- |
+| **Under `app/islands/`**    | `app/islands/counter.tsx`       |
+| **`$`-prefixed, colocated** | `app/routes/blog/$comments.tsx` |
 
 ```tsx
 // app/islands/counter.tsx (interactive on the client after hydration)
@@ -130,7 +143,11 @@ import { useState } from "preact/hooks";
 
 export default function Counter({ start = 0 }: { start?: number }) {
   const [n, setN] = useState(start);
-  return <button type="button" onClick={() => setN((v) => v + 1)}>counts: {n}</button>;
+  return (
+    <button type="button" onClick={() => setN((v) => v + 1)}>
+      counts: {n}
+    </button>
+  );
 }
 ```
 
