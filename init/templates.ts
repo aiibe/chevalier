@@ -48,7 +48,16 @@ export default defineConfig(({ isSsrBuild }) => ({
   // One Preact instance across SSR + islands is required for hydration.
   resolve: {
     dedupe: ["preact", "preact/hooks", "preact-render-to-string", "hono"],
+    // Published core bakes in npm:preact@x/jsx-runtime specifiers; map them back
+    // to the import-map name so the jsx-runtime subpath (jsxs/jsxDEV) resolves.
+    alias: [
+      { find: /^npm:preact@[^/]*\\/(.*)$/, replacement: "preact/$1" },
+      { find: /^npm:preact@[^/]*$/, replacement: "preact" },
+    ],
   },
+  // Must process preact in-pipeline: externalized, its jsx-runtime subpath
+  // (jsxs/jsxDEV) collapses to bare preact, which lacks those exports.
+  ssr: { noExternal: true },
   optimizeDeps: { noDiscovery: true, include: [] },
   // chevalier before deno so it claims virtual:chevalier-islands before the
   // deno loader rejects the virtual: scheme.

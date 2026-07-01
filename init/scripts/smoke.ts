@@ -29,6 +29,18 @@ const fail = (msg: string) => {
 };
 const ok = (msg: string) => console.log(`ok: ${msg}`);
 
+// Returns null on a non-JSON body (e.g. a broken app's HTML error page) instead
+// of throwing, so callers report a FAIL rather than aborting the whole run.
+const fetchJson = async (url: string, init?: RequestInit) => {
+  const res = await fetch(url, init);
+  const body = await res.text();
+  try {
+    return JSON.parse(body);
+  } catch {
+    return null;
+  }
+};
+
 console.log(`mode: ${USE_JSR ? "published JSR core" : "local src core"}`);
 
 const workRoot = await Deno.makeTempDir({ prefix: "chevalier-smoke-" });
@@ -161,15 +173,17 @@ try {
         fail("/ missing island boot script");
       } else ok("/ island boot script present");
 
-      const api = await (await fetch(`${BASE}/api`)).json();
+      // A broken app serves an HTML error page here; .json() would throw and
+      // abort the run before cleanup. Parse defensively so it reads as a FAIL.
+      const api = await fetchJson(`${BASE}/api`);
       if (api?.ok !== true) fail("/api did not return { ok: true }");
       else ok("/api handler responds");
 
-      const echo = await (await fetch(`${BASE}/api/echo`, {
+      const echo = await fetchJson(`${BASE}/api/echo`, {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ hi: 1 }),
-      })).json();
+      });
       if (echo?.echo?.hi !== 1) fail("POST /api/echo did not echo body");
       else ok("POST /api/echo echoes");
 

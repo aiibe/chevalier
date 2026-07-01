@@ -14,7 +14,8 @@
     "preact": "npm:preact@^10.24.0",
     "preact/": "npm:/preact@^10.24.0/",
     "preact-render-to-string": "npm:preact-render-to-string@^6.5.0",
-    "vite": "npm:vite@^5.4.0",
+    "vite": "npm:vite@^7.0.0",
+    "@deno/vite-plugin": "npm:@deno/vite-plugin@^2.0.2",
     "@prefresh/vite": "npm:@prefresh/vite@^2.4.0",
     "@prefresh/core": "npm:@prefresh/core@^1.5.0",
     "@prefresh/utils": "npm:@prefresh/utils@^1.2.0"
