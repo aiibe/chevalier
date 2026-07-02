@@ -9,11 +9,11 @@ Deno.test("buildBoot — no islands ships zero JS", () => {
 
 Deno.test("buildBoot — imports the page's islands and passes components + props", () => {
   const boot = buildBoot(
-    ["islands/counter", "routes/$clock"],
+    ["islands/counter", "islands/clock"],
     [{ start: 3 }, {}],
     {
       "islands/counter": "/assets/counter-a1b2.js",
-      "routes/$clock": "/assets/clock-c3d4.js",
+      "islands/clock": "/assets/clock-c3d4.js",
       "islands/unused": "/assets/unused.js",
     },
     "/assets/client-x.js",

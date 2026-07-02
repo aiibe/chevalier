@@ -1,5 +1,5 @@
-// App-level layout override. Changing this file forces a full reload (PLAN
-// §5: affects the document shell), like routes and islands.
+// App-level layout override. Changing this file forces a full reload
+// (affects the document shell), like routes and islands.
 // `boot` is "" for a page with no islands, shipping zero client JS.
 
 import type { LayoutProps } from "chevalier";

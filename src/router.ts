@@ -67,8 +67,6 @@ export function createRoutes(
     if (!file.startsWith("routes/")) continue;
     const name = file.slice(file.lastIndexOf("/") + 1);
     if (isConventionFile(name)) continue;
-    // $-prefixed colocated islands are not routes.
-    if (name.startsWith("$")) continue;
     // Drop test/spec/type files; component pages and .ts handlers both stay.
     if (/(\.(test|spec)\.(tsx|jsx|ts|js)|\.d\.ts)$/.test(name)) continue;
     routes.push({ path: fileToPath(file), file, load });

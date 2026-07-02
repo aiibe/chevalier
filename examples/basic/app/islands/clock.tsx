@@ -1,5 +1,4 @@
-// Island (Rule B: $-prefixed filename, colocated next to the routes that use
-// it). Ticks on the client after hydration.
+// Island: ticks on the client after hydration.
 
 import { useEffect, useState } from "preact/hooks";
 

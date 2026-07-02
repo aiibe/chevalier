@@ -2,16 +2,10 @@ import { assertEquals } from "@std/assert";
 import { isExcluded, isIsland, islandId, normalizePath } from "./islands.ts";
 import { createRoutes, fileToPath } from "./router.ts";
 
-Deno.test("Rule A — islands/ dir, recursive", () => {
+Deno.test("islands/ dir, recursive", () => {
   assertEquals(isIsland("islands/counter.tsx"), true);
   assertEquals(isIsland("islands/nested/widget.jsx"), true);
   assertEquals(isIsland("routes/blog/islands/x.tsx"), true); // reserved at depth
-});
-
-Deno.test("Rule B — $-prefixed filename under routes/", () => {
-  assertEquals(isIsland("routes/blog/$comments.tsx"), true);
-  assertEquals(isIsland("routes/$clock.tsx"), true);
-  assertEquals(isIsland("routes/blog/comments.tsx"), false);
 });
 
 Deno.test("exclusions take precedence", () => {
@@ -30,7 +24,7 @@ Deno.test("non-islands", () => {
 
 Deno.test("islandId drops extension, normalized", () => {
   assertEquals(islandId("islands/counter.tsx"), "islands/counter");
-  assertEquals(islandId("./routes/$clock.jsx"), "routes/$clock");
+  assertEquals(islandId("./islands/nested/widget.jsx"), "islands/nested/widget");
   assertEquals(normalizePath("\\a\\b"), "/a/b".replace(/^\//, ""));
 });
 
@@ -43,7 +37,7 @@ Deno.test("fileToPath", () => {
 });
 
 // createRoutes' exclusion filter: pages and .ts handlers become routes;
-// convention/island/test/type files don't.
+// convention/test/type files don't.
 Deno.test("createRoutes filters non-route files", () => {
   const noop = () => Promise.resolve({});
   const files = [
@@ -51,7 +45,6 @@ Deno.test("createRoutes filters non-route files", () => {
     "routes/about.tsx", // page → /about
     "routes/api.ts", // handler → /api (kept)
     "routes/_layout.tsx", // convention → dropped
-    "routes/$clock.tsx", // island → dropped
     "routes/home.test.tsx", // test → dropped
     "routes/util.spec.ts", // spec → dropped
     "routes/types.d.ts", // types → dropped

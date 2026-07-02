@@ -14,7 +14,7 @@ const manifest: ViteManifest = {
     isEntry: true,
   },
   "app/islands/counter.tsx": { file: "assets/counter-A1b2C3d4.js" },
-  "app/routes/$clock.jsx": { file: "assets/clock-E5f6G7h8.js" },
+  "app/islands/clock.jsx": { file: "assets/clock-E5f6G7h8.js" },
 };
 
 Deno.test("no manifest (dev) → client dev URL", () => {
@@ -39,7 +39,7 @@ Deno.test("resolveIslandUrl — id → hashed chunk (tries tsx then jsx)", () =>
     "/assets/counter-A1b2C3d4.js",
   );
   assertEquals(
-    resolveIslandUrl("routes/$clock", manifest),
+    resolveIslandUrl("islands/clock", manifest),
     "/assets/clock-E5f6G7h8.js",
   );
 });
@@ -52,11 +52,11 @@ Deno.test("resolveIslandUrl — no manifest / miss → null", () => {
 Deno.test("resolveIslandUrls — dev map rewritten to hashed chunks", () => {
   const dev = {
     "islands/counter": "/app/islands/counter.tsx",
-    "routes/$clock": "/app/routes/$clock.jsx",
+    "islands/clock": "/app/islands/clock.jsx",
   };
   assertEquals(resolveIslandUrls(dev, manifest), {
     "islands/counter": "/assets/counter-A1b2C3d4.js",
-    "routes/$clock": "/assets/clock-E5f6G7h8.js",
+    "islands/clock": "/assets/clock-E5f6G7h8.js",
   });
 });
 

@@ -38,7 +38,7 @@ Deno.test("hot-reload — full reload on route/layout, not islands", () => {
   for (
     const f of [
       `${root}/islands/counter.tsx`,
-      `${root}/routes/blog/$comments.tsx`, // Rule B island
+      `${root}/islands/nested/widget.tsx`,
     ]
   ) {
     sent.length = 0;

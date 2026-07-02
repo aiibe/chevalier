@@ -1,4 +1,4 @@
-// Island (Rule A: under islands/). Interactive on the client after hydration.
+// Island: interactive on the client after hydration.
 
 import { useState } from "preact/hooks";
 

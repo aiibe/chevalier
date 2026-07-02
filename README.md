@@ -129,13 +129,13 @@ export const app = new Hono()
 
 ## Islands
 
-An island is a component that hydrates on the client. Make one by putting it in
-either place. There is no `island()` wrapper. Its **default export** hydrates.
+An island is a component that hydrates on the client. Make one by putting it
+under `app/islands/` (reserved at any depth). There is no `island()` wrapper. Its
+**default export** hydrates.
 
-| Where                       | Example                         |
-| --------------------------- | ------------------------------- |
-| **Under `app/islands/`**    | `app/islands/counter.tsx`       |
-| **`$`-prefixed, colocated** | `app/routes/blog/$comments.tsx` |
+| Where                    | Example                   |
+| ------------------------ | ------------------------- |
+| **Under `app/islands/`** | `app/islands/counter.tsx` |
 
 ```tsx
 // app/islands/counter.tsx (interactive on the client after hydration)

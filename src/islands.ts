@@ -12,19 +12,16 @@ function basename(p: string): string {
 }
 
 /**
- * True iff `path` (app-root-relative) is an island.
- * Rule A: any `.tsx`/`.jsx` under `islands/` (reserved at any depth).
- * Rule B: any `$`-prefixed `.tsx`/`.jsx` filename under `routes/`.
- * Exclusions take precedence over both rules.
+ * True iff `path` (app-root-relative) is an island: any `.tsx`/`.jsx` under
+ * `islands/` (reserved at any depth). Exclusions take precedence.
  */
 export function isIsland(path: string): boolean {
   const p = normalizePath(path);
   if (isExcluded(p)) return false;
-  return /(?:^|\/)islands\/.+\.(tsx|jsx)$/.test(p) ||
-    /(?:^|\/)routes\/.*\/?\$[^/]+\.(tsx|jsx)$/.test(p);
+  return /(?:^|\/)islands\/.+\.(tsx|jsx)$/.test(p);
 }
 
-/** Excluded files — never islands even under islands/ or with a $ name. */
+/** Excluded files — never islands even under islands/. */
 export function isExcluded(path: string): boolean {
   const p = normalizePath(path);
   const name = basename(p);
