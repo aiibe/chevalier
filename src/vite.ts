@@ -4,6 +4,7 @@
 import type { Connect, Plugin, ViteDevServer } from "vite";
 import { fileURLToPath } from "node:url";
 import { isIsland, islandId, normalizePath } from "./islands.ts";
+import { compileRouteMatcher } from "./router.ts";
 import { CLIENT_NAME } from "./manifest.ts";
 
 // Requests Vite must handle itself, not the SSR app: its client runtime,
@@ -15,6 +16,22 @@ const VITE_OWNED = [
   /^\/node_modules\//,
   /^\/favicon\.ico$/,
 ];
+
+// HMR client + a reporter of this browser's route, so a route edit reloads only
+// matching tabs. Re-reports on history nav to track client-router path changes.
+const DEV_HEAD_INJECT = `
+<script type="module" src="/@vite/client"></script>
+<script type="module">
+import { createHotContext } from "/@vite/client";
+const hot = createHotContext("/chevalier:route-reporter");
+const report = () => hot.send("chevalier:route", { pathname: location.pathname });
+report();
+for (const m of ["pushState", "replaceState"]) {
+  const orig = history[m];
+  history[m] = function () { const r = orig.apply(this, arguments); report(); return r; };
+}
+addEventListener("popstate", report);
+</script>`;
 
 // Connect types req as a bare IncomingMessage without the http augmentations,
 // so we narrow to the fields we read structurally.
@@ -80,7 +97,7 @@ function devMiddleware(
         // latter rewrites our inline island-boot <script> into an asset proxy.
         const body = (await response.text()).replace(
           "<head>",
-          `<head>\n<script type="module" src="/@vite/client"></script>`,
+          `<head>${DEV_HEAD_INJECT}`,
         );
         res.setHeader(
           "content-length",
@@ -181,11 +198,19 @@ function appRel(file: string, appRoot: string): string | null {
   return null;
 }
 
-function shouldFullReload(file: string, appRoot: string): boolean {
+// "route" reloads only matching browsers; "layout" broadcasts because a _layout
+// wraps many routes and can't be cheaply mapped back to one URL.
+type ReloadKind = "route" | "layout" | null;
+
+function reloadKind(
+  file: string,
+  appRoot: string,
+): { kind: ReloadKind; rel: string | null } {
   const rel = appRel(file, appRoot);
-  if (rel === null) return false;
-  if (isIsland(rel)) return false;
-  return rel.startsWith("routes/") || rel.includes("_layout");
+  if (rel === null || isIsland(rel)) return { kind: null, rel };
+  if (rel.includes("_layout")) return { kind: "layout", rel };
+  if (rel.startsWith("routes/")) return { kind: "route", rel };
+  return { kind: null, rel };
 }
 
 // Minimal structural view of Vite's SSR EnvironmentModuleGraph — avoids
@@ -243,6 +268,8 @@ export function chevalier(options: ChevalierOptions = {}): Plugin[] {
   const appRootRel = opts.appRoot.replace(/^\.?\//, "");
   let serve = true; // gates prefresh to dev; set from config().env.command
   let projectRoot = ""; // resolved config.root; used to locate islands on disk
+  // HMR client → its last-reported location.pathname (for route-scoped reloads).
+  const clientPaths = new WeakMap<object, string>();
 
   const main: Plugin = {
     name: "chevalier",
@@ -381,18 +408,39 @@ export function chevalier(options: ChevalierOptions = {}): Plugin[] {
       server.watcher.on("add", onIslandStructureChange);
       server.watcher.on("unlink", onIslandStructureChange);
 
+      // Record each client's reported pathname, keyed by the client object.
+      server.ws.on(
+        "chevalier:route",
+        (data: { pathname?: unknown }, client: object) => {
+          if (typeof data?.pathname === "string") {
+            clientPaths.set(client, data.pathname);
+          }
+        },
+      );
+
       // Post hook: our SSR app is the fallthrough, after Vite's own middlewares.
       return () => server.middlewares.use(devMiddleware(server, opts.entry));
     },
 
     handleHotUpdate({ file, server }: { file: string; server: ViteDevServer }) {
-      if (shouldFullReload(file, opts.appRoot)) {
+      const { kind, rel } = reloadKind(file, opts.appRoot);
+      if (kind === "layout") {
         server.ws.send({ type: "full-reload" });
+        return [];
+      }
+      if (kind === "route") {
+        const matches = compileRouteMatcher(rel!);
+        // No reported path yet → reload anyway (safe default).
+        for (const client of server.ws.clients) {
+          const path = clientPaths.get(client);
+          if (path === undefined || matches(path)) {
+            client.send({ type: "full-reload" });
+          }
+        }
         return []; // swallow HMR — no partial module swap
       }
       // Island edit: prefresh handles the client, but the SSR module and its
       // SSR importers must re-transform too, else the importer graph goes stale.
-      const rel = appRel(file, opts.appRoot);
       if (rel !== null && isIsland(rel)) {
         const ssr = server.environments?.ssr?.moduleGraph;
         if (ssr) invalidateSsrImporters(ssr, file);

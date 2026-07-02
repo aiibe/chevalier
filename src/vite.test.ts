@@ -12,48 +12,106 @@ function corePlugin(): AnyPlugin {
   return core;
 }
 
-// Hot-reload policy: routes and _layout full-reload (deterministic SSR);
-// islands fall through to prefresh HMR (return undefined → default handling).
-Deno.test("hot-reload — full reload on route/layout, not islands", () => {
+// A fake HMR client that records what the server sends it, plus a captured
+// custom-event listener so a test can feed the client its location.pathname.
+function fakeServer() {
+  const broadcast: unknown[] = []; // server.ws.send(...) — reaches all clients
+  const listeners: Record<string, (data: unknown, client: object) => void> = {};
+  const clients = new Set<{ sent: unknown[]; send: (m: unknown) => void }>();
+  const mkClient = () => {
+    const c = { sent: [] as unknown[], send: (m: unknown) => c.sent.push(m) };
+    clients.add(c);
+    return c;
+  };
+  const server = {
+    ws: {
+      send: (m: unknown) => broadcast.push(m),
+      clients,
+      on: (
+        e: string,
+        cb: (d: unknown, c: object) => void,
+      ) => (listeners[e] = cb),
+    },
+    watcher: { on: () => {} },
+    middlewares: { use: () => {} },
+    environments: { ssr: { moduleGraph: undefined } },
+  };
+  // Drive configureServer so the "chevalier:route" listener registers.
   const p = corePlugin();
-  const sent: unknown[] = [];
-  const server = { ws: { send: (m: unknown) => sent.push(m) } };
-  const root = "/proj/app";
+  p.configureServer(server);
+  const report = (client: object, pathname: string) =>
+    listeners["chevalier:route"]?.({ pathname }, client);
+  return { p, server, broadcast, mkClient, report };
+}
 
-  // Routes and layout still full-reload.
+// Route edits reload only browsers on that route; layout edits reload all;
+// islands fall through to prefresh HMR (undefined → default handling).
+Deno.test("hot-reload — route edit targets only matching clients", () => {
+  const { p, server, mkClient, report } = fakeServer();
+  const onIndex = mkClient(), onAbout = mkClient(), onBlogPost = mkClient();
+  report(onIndex, "/");
+  report(onAbout, "/about");
+  report(onBlogPost, "/blog/hello");
+
+  // Editing routes/about.tsx reloads only the /about tab.
+  const r = p.handleHotUpdate({
+    file: "/proj/app/routes/about.tsx",
+    server,
+  });
+  assertEquals(r, [], "route edit swallows HMR");
+  assertEquals(onAbout.sent, [{ type: "full-reload" }]);
+  assertEquals(onIndex.sent, [], "index tab must not reload");
+  assertEquals(onBlogPost.sent, [], "blog tab must not reload");
+});
+
+Deno.test("hot-reload — dynamic route matches its concrete URL", () => {
+  const { p, server, mkClient, report } = fakeServer();
+  const onPost = mkClient(), onIndex = mkClient();
+  report(onPost, "/blog/hello");
+  report(onIndex, "/");
+
+  p.handleHotUpdate({ file: "/proj/app/routes/blog/[slug].tsx", server });
+  assertEquals(onPost.sent, [{ type: "full-reload" }]);
+  assertEquals(onIndex.sent, []);
+});
+
+Deno.test("hot-reload — client with no reported path reloads (safe default)", () => {
+  const { p, server, mkClient } = fakeServer();
+  const unknown = mkClient(); // never reported a pathname
+  p.handleHotUpdate({ file: "/proj/app/routes/about.tsx", server });
+  assertEquals(unknown.sent, [{ type: "full-reload" }]);
+});
+
+Deno.test("hot-reload — layout edit broadcasts to all clients", () => {
+  const { p, server, broadcast, mkClient, report } = fakeServer();
+  const onAbout = mkClient();
+  report(onAbout, "/about");
+  const r = p.handleHotUpdate({
+    file: "/proj/app/routes/_layout.tsx",
+    server,
+  });
+  assertEquals(r, []);
+  assertEquals(broadcast, [{ type: "full-reload" }], "layout broadcasts");
+  assertEquals(onAbout.sent, [], "layout uses broadcast, not per-client send");
+});
+
+Deno.test("hot-reload — islands and non-app files don't full-reload", () => {
+  const { p, server, broadcast, mkClient, report } = fakeServer();
+  const onIndex = mkClient();
+  report(onIndex, "/");
+
   for (
     const f of [
-      `${root}/routes/index.tsx`,
-      `${root}/routes/_layout.tsx`,
+      "/proj/app/islands/counter.tsx",
+      "/proj/app/islands/nested/widget.tsx",
+      "/proj/vite.config.ts",
     ]
   ) {
-    sent.length = 0;
     const r = p.handleHotUpdate({ file: f, server });
-    assertEquals(r, [], `should swallow HMR for ${f}`);
-    assertEquals(sent, [{ type: "full-reload" }], `should reload for ${f}`);
+    assertEquals(r, undefined, `should not swallow: ${f}`);
   }
-
-  // Islands no longer full-reload — they HMR via prefresh, so handleHotUpdate
-  // returns undefined (default) and sends no full-reload message.
-  for (
-    const f of [
-      `${root}/islands/counter.tsx`,
-      `${root}/islands/nested/widget.tsx`,
-    ]
-  ) {
-    sent.length = 0;
-    const r = p.handleHotUpdate({ file: f, server });
-    assertEquals(r, undefined, `island should not be swallowed: ${f}`);
-    assertEquals(sent, [], `island should not full-reload: ${f}`);
-  }
-
-  // A non-app file passes through (undefined → default HMR).
-  sent.length = 0;
-  assertEquals(
-    p.handleHotUpdate({ file: "/proj/vite.config.ts", server }),
-    undefined,
-  );
-  assertEquals(sent, []);
+  assertEquals(broadcast, []);
+  assertEquals(onIndex.sent, []);
 });
 
 // Island imports carry the extension + HMR `?t=` suffix but the map is keyed

@@ -60,6 +60,31 @@ export function fileToPath(file: string): string {
   return "/" + p.replace(/^\//, "");
 }
 
+// Compiles a route file to a pathname matcher. Hoist out of a per-client loop:
+// the regex depends only on `file`. `file` is app-root-relative (`routes/[slug].tsx`).
+export function compileRouteMatcher(
+  file: string,
+): (pathname: string) => boolean {
+  const pattern = fileToPath(file); // e.g. "/blog/:slug", "/files/:rest{.+}"
+  const source = "^" + pattern
+    .split("/")
+    .map((seg) => {
+      // :rest{.+} catch-all → greedy across slashes; :slug → one segment.
+      if (/^:.+\{.+\}$/.test(seg)) return "(?:.+)";
+      if (seg.startsWith(":")) return "(?:[^/]+)";
+      return seg.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    })
+    .join("/") +
+    "/?$";
+  const re = new RegExp(source);
+  return (pathname) => re.test(pathname);
+}
+
+// Scopes a dev route-edit reload to browsers on that route.
+export function routeMatchesPath(file: string, pathname: string): boolean {
+  return compileRouteMatcher(file)(pathname);
+}
+
 /** `modules` is app-root-relative path → loader (e.g. from import.meta.glob). */
 export function createRoutes(
   modules: Record<string, () => Promise<RouteModule>>,

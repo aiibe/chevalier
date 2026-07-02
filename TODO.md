@@ -1,14 +1,5 @@
 # TODO
 
-## High
-
-- **Full reload only when the browser is on the affected route.** Editing a
-  route/layout broadcasts `full-reload` to every connected client
-  (`shouldFullReload` in `src/vite.ts`), so an unrelated open tab reloads too.
-  Experiment with reloading only clients whose current URL maps to the changed
-  file — needs the client's `location.pathname` server-side (a small `ws`
-  handshake), then matched against the edited route.
-
 ## Nice-to-have
 
 - **Migrate to Vite 8.** Vite 8 replaces esbuild with Oxc as the default
@@ -46,5 +37,5 @@
   `executionContext`) or configurable exclude/injection options. Add only if an
   app needs them.
 
-- **`deno.lock` is gitignored.** No committed lockfile, so CI resolves deps
-  fresh each run (revisit if reproducible installs matter).
+- **`deno.lock` is gitignored.** It exists locally but is untracked, so CI
+  resolves deps fresh each run (revisit if reproducible installs matter).
