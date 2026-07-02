@@ -239,7 +239,11 @@ Deno.test("loader returning a Response short-circuits render", async () => {
     routes: {
       "/app/routes/index.tsx": () =>
         Promise.resolve({
-          loader: () => new Response(null, { status: 302, headers: { location: "/login" } }),
+          loader: () =>
+            new Response(null, {
+              status: 302,
+              headers: { location: "/login" },
+            }),
           default: () => h("div", null, "should not render"),
         }),
     },
@@ -256,14 +260,16 @@ Deno.test("async loader is awaited before render", async () => {
     routes: {
       "/app/routes/index.tsx": () =>
         Promise.resolve({
-          loader: () =>
-            Promise.resolve({ msg: "fetched" }),
+          loader: () => Promise.resolve({ msg: "fetched" }),
           default: (props: { msg: string }) => h("div", null, props.msg),
         }),
     },
   });
 
-  assertEquals((await (await app.request("/")).text()).includes("fetched"), true);
+  assertEquals(
+    (await (await app.request("/")).text()).includes("fetched"),
+    true,
+  );
 });
 
 Deno.test("_error page renders in the layout when a route throws", async () => {

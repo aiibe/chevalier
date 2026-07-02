@@ -77,7 +77,7 @@ const FILES: TemplateFile[] = [
   {
     path: "app/routes/api.ts",
     contents:
-      '// Handler route (export const app) → mounted at /api, serving any HTTP method.\n// Routes are file-relative: "/" is /api, "/echo" is /api/echo.\nimport { Hono } from "hono";\n\nconst QUOTES = [\n  "Ship it.",\n  "It works on my machine.",\n  "Islands all the way down.",\n  "Zero JS until you need it.",\n];\n\nexport const app = new Hono()\n  .get("/", (c) => c.json({ ok: true, route: "/api" }))\n  .post("/echo", async (c) => c.json({ echo: await c.req.json() }))\n  // Fake data endpoint the Quote island fetches on click. GET /api/quote.\n  .get("/quote", (c) =>\n    c.json({ quote: QUOTES[Math.floor(Math.random() * QUOTES.length)] }));\n',
+      '// Handler route (export const app) → mounted at /api, serving any HTTP method.\n// Routes are file-relative: "/" is /api, "/echo" is /api/echo.\nimport { Hono } from "hono";\n\nconst QUOTES = [\n  "Ship it.",\n  "It works on my machine.",\n  "Islands all the way down.",\n  "Zero JS until you need it.",\n];\n\nexport const app = new Hono()\n  .get("/", (c) => c.json({ ok: true, route: "/api" }))\n  .post("/echo", async (c) => c.json({ echo: await c.req.json() }))\n  // Fake data endpoint the Quote island fetches on click. GET /api/quote.\n  .get(\n    "/quote",\n    (c) => c.json({ quote: QUOTES[Math.floor(Math.random() * QUOTES.length)] }),\n  );\n',
   },
   {
     path: "app/islands/counter.tsx",

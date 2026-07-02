@@ -24,7 +24,10 @@ Deno.test("non-islands", () => {
 
 Deno.test("islandId drops extension, normalized", () => {
   assertEquals(islandId("islands/counter.tsx"), "islands/counter");
-  assertEquals(islandId("./islands/nested/widget.jsx"), "islands/nested/widget");
+  assertEquals(
+    islandId("./islands/nested/widget.jsx"),
+    "islands/nested/widget",
+  );
   assertEquals(normalizePath("\\a\\b"), "/a/b".replace(/^\//, ""));
 });
 

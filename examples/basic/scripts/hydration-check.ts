@@ -106,7 +106,9 @@ try {
       nestedAfter = await nested.evaluate(text);
     }
     console.log(
-      `nested: ${JSON.stringify(nestedBefore)} -> ${JSON.stringify(nestedAfter)}`,
+      `nested: ${JSON.stringify(nestedBefore)} -> ${
+        JSON.stringify(nestedAfter)
+      }`,
     );
     if (nestedBefore !== "counts: 10") {
       fail(`expected nested SSR "counts: 10", got ${nestedBefore}`);

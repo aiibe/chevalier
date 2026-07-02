@@ -13,5 +13,7 @@ export const app = new Hono()
   .get("/", (c) => c.json({ ok: true, route: "/api" }))
   .post("/echo", async (c) => c.json({ echo: await c.req.json() }))
   // Fake data endpoint the Quote island fetches on click. GET /api/quote.
-  .get("/quote", (c) =>
-    c.json({ quote: QUOTES[Math.floor(Math.random() * QUOTES.length)] }));
+  .get(
+    "/quote",
+    (c) => c.json({ quote: QUOTES[Math.floor(Math.random() * QUOTES.length)] }),
+  );

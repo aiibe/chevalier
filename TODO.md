@@ -1,5 +1,14 @@
 # TODO
 
+## High
+
+- **Full reload only when the browser is on the affected route.** Editing a
+  route/layout broadcasts `full-reload` to every connected client
+  (`shouldFullReload` in `src/vite.ts`), so an unrelated open tab reloads too.
+  Experiment with reloading only clients whose current URL maps to the changed
+  file — needs the client's `location.pathname` server-side (a small `ws`
+  handshake), then matched against the edited route.
+
 ## Nice-to-have
 
 - **Migrate to Vite 8.** Vite 8 replaces esbuild with Oxc as the default
@@ -8,14 +17,14 @@
   the `oxc` option and re-run full tests + smoke before widening the `^7` pin;
   hydration parity with `preact-render-to-string` depends on getting it right.
 
-- **`@chevalier/init` template drifts from `examples/basic`.** The scaffolder
-  hand-keeps its files as string constants in `init/templates.ts`, so the
-  template silently goes stale when the example's wiring changes. Direction:
-  generate `templates.ts` _from_ `examples/basic` via a prepublish step that
-  applies declared transforms (local-src imports → `jsr:@chevalier/core`, drop
-  the `$clock` demo, strip PLAN§ comments) and verifies the committed file is up
-  to date — a plain copy would ship broken `../../src` paths, so the transforms
-  are the work.
+- **`init/templates/` is a hand-kept parallel of `examples/basic`.** The
+  embed/drift-guard is done (`init/templates/` real files → `templates.gen.ts`
+  via `deno task gen`, checked in CI by `gen:check`). But the two trees are
+  still maintained by hand — a change to the example must be mirrored into the
+  template manually (as the loader/quote examples just were). To fully close the
+  gap, generate `templates/` _from_ `examples/basic` with declared transforms
+  (local-src imports → `jsr:@chevalier/core`, drop the clock demo) rather than
+  keeping a second copy.
 
 - **Hydration check not in CI.** `examples/basic` has a headless-Chrome
   hydration smoke test (`deno task check:hydration`) that's macOS-Chrome-path
@@ -32,13 +41,10 @@
   HMR — islands reload-swap and lose state with no error. Surface a one-time
   warning, or document the required deps in the app template.
 
-- **Async islands.** No `Suspense`/async islands yet. Nested islands
-  (island-in-island) now work; async is fine to defer for v0.
-
-- **Dev middleware is minimal.** The handrolled dev SSR middleware (replacing
-  `@hono/vite-dev-server`) in `src/vite.ts` covers the SSR-render path but not
-  that plugin's platform adapters (Cloudflare/Bun `env`, `executionContext`) or
-  configurable exclude/injection options. Add back only if an app needs them.
+- **Dev middleware is minimal.** The dev SSR middleware in `src/vite.ts` covers
+  the SSR-render path but not platform adapters (Cloudflare/Bun `env`,
+  `executionContext`) or configurable exclude/injection options. Add only if an
+  app needs them.
 
 - **`deno.lock` is gitignored.** No committed lockfile, so CI resolves deps
   fresh each run (revisit if reproducible installs matter).
