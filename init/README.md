@@ -9,7 +9,7 @@ Quick-start scaffolder for [Chevalier](https://jsr.io/@chevalier/core).
 Create a new Chevalier app in one command:
 
 ```sh
-deno run -A jsr:@chevalier/init my-app
+deno run -Ar jsr:@chevalier/init my-app
 cd my-app
 deno install
 deno task dev

@@ -1,5 +1,5 @@
 // Scaffolder for a fresh Chevalier app.
-//   deno run -A jsr:@chevalier/init my-app
+//   deno run -Ar jsr:@chevalier/init my-app
 // Writes the template into <dir> (created if missing), then prints next steps.
 
 import { templateFiles } from "./templates.gen.ts";

@@ -60,7 +60,7 @@ export default function Home() {
 Scaffold a fresh app in one command:
 
 ```sh
-deno run -A jsr:@chevalier/init my-app
+deno run -Ar jsr:@chevalier/init my-app
 cd my-app
 deno install
 deno task dev

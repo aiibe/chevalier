@@ -46,6 +46,10 @@ console.log(`mode: ${USE_JSR ? "published JSR core" : "local src core"}`);
 const workRoot = await Deno.makeTempDir({ prefix: "chevalier-smoke-" });
 const APP = `${workRoot}/smoke-app`;
 
+// Own cache dir so subprocesses can't inherit the repo's deno.lock and pin a
+// stale jsr:@chevalier/init resolution into it.
+const DENO_DIR = `${workRoot}/deno-cache`;
+
 async function run(
   cmd: string[],
   opts: { cwd?: string; env?: Record<string, string> } = {},
@@ -54,7 +58,7 @@ async function run(
   return await new Deno.Command(bin, {
     args,
     cwd: opts.cwd,
-    env: opts.env,
+    env: { ...Deno.env.toObject(), DENO_DIR, ...opts.env },
     stdout: "piped",
     stderr: "piped",
   }).output();
@@ -63,10 +67,12 @@ async function run(
 const dec = new TextDecoder();
 
 try {
-  // 1. Scaffold.
-  const scaffold = await run(["deno", "run", "-A", INIT_MOD, "smoke-app"], {
-    cwd: workRoot,
-  });
+  // 1. Scaffold. --no-lock: pure file writes, and it stops a repo-tree run from
+  // touching a lockfile.
+  const scaffold = await run(
+    ["deno", "run", "-A", "--no-lock", INIT_MOD, "smoke-app"],
+    { cwd: workRoot },
+  );
   if (!scaffold.success) {
     console.error(dec.decode(scaffold.stderr));
     fail("scaffolder exited non-zero");
@@ -134,6 +140,7 @@ try {
   const dev = new Deno.Command("deno", {
     args: ["task", "dev", "--port", String(PORT), "--host", "127.0.0.1"],
     cwd: APP,
+    env: { ...Deno.env.toObject(), DENO_DIR },
     stdout: "piped",
     stderr: "piped",
   }).spawn();
