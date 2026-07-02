@@ -21,7 +21,8 @@
   "tasks": {
     "dev": "vite",
     "build": "vite build && vite build --ssr",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "demo": "cd examples/basic && deno task dev"
   },
   "imports": {
     "@std/assert": "jsr:@std/assert@^1.0.0",

@@ -1,6 +1,7 @@
 import Counter from "../../app/islands/counter.tsx";
 import Panel from "../../app/islands/panel.tsx";
 import Clock from "../../app/islands/clock.tsx";
+import Quote from "../../app/islands/quote.tsx";
 
 export default function Home() {
   return (
@@ -13,6 +14,8 @@ export default function Home() {
       <Clock />
       <h2>Nested — an island rendered inside another island</h2>
       <Panel />
+      <h2>Fetch — click to load fake data from /api/quote</h2>
+      <Quote />
     </div>
   );
 }

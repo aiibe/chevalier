@@ -22,8 +22,10 @@ const MANIFEST: ReadonlyArray<readonly [string, string]> = [
   ["app/routes/_error.tsx", "app/routes/_error.tsx"],
   ["app/routes/index.tsx", "app/routes/index.tsx"],
   ["app/routes/about.tsx", "app/routes/about.tsx"],
+  ["app/routes/hello/[name].tsx", "app/routes/hello/[name].tsx"],
   ["app/routes/api.ts", "app/routes/api.ts"],
   ["app/islands/counter.tsx", "app/islands/counter.tsx"],
+  ["app/islands/quote.tsx", "app/islands/quote.tsx"],
 ];
 
 // JSON.stringify escapes any bytes (backticks, ${}, backslashes) — no

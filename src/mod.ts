@@ -2,7 +2,7 @@
 // a Preact view layer and full-reload-on-route-change in dev.
 
 export { buildBoot, createApp } from "./server.ts";
-export type { CreateAppOptions } from "./server.ts";
+export type { CreateAppOptions, PageLoader } from "./server.ts";
 
 export {
   resolveClientEntry,

@@ -57,6 +57,19 @@ export interface CreateAppOptions {
   app?: Hono;
 }
 
+/**
+ * A page loader: runs before render, receiving the Hono context. Return a plain
+ * object to merge into the page props, or a Response to short-circuit render
+ * (redirect, 404, custom status). May be async — render stays sync.
+ */
+export type PageLoader = (
+  c: Context,
+) =>
+  | Response
+  | Record<string, unknown>
+  | void
+  | Promise<Response | Record<string, unknown> | void>;
+
 function isHandlerModule(m: RouteModule): m is RouteModule & { app: Hono } {
   return !!m.app && typeof (m.app as Hono).fetch === "function";
 }
@@ -105,7 +118,9 @@ export function createApp(options: CreateAppOptions): Hono {
     }
 
     // Pages render GET-only; a non-GET or a sub-path under a page 404s.
-    if (c.req.method !== "GET" || c.req.path !== route.path) {
+    // Compare the *matched pattern* (routePath), so `/:id` pages match `/42`;
+    // the wildcard mount registers as `/:id/*`, which won't equal route.path.
+    if (c.req.method !== "GET" || c.req.routePath !== route.path) {
       return c.notFound();
     }
 
@@ -116,7 +131,20 @@ export function createApp(options: CreateAppOptions): Hono {
       return c.notFound();
     }
 
-    const html = renderDoc(Page, { params: c.req.param() }, readNonce(c));
+    // A Response short-circuits; any other value merges into props. See PageLoader.
+    let data: Record<string, unknown> = {};
+    const loader = mod.loader as PageLoader | undefined;
+    if (loader) {
+      const result = await loader(c);
+      if (result instanceof Response) return result;
+      if (result) data = result;
+    }
+
+    const html = renderDoc(
+      Page,
+      { params: c.req.param(), ...data },
+      readNonce(c),
+    );
     return c.html(html);
   };
 

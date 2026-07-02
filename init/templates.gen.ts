@@ -62,7 +62,7 @@ const FILES: TemplateFile[] = [
   {
     path: "app/routes/index.tsx",
     contents:
-      'import Counter from "../islands/counter.tsx";\n\nexport default function Home() {\n  return (\n    <div>\n      <h1>Chevalier</h1>\n      <p>A file-routed Deno meta-framework that ships islands, not bundles.</p>\n      <Counter start={3} />\n    </div>\n  );\n}\n',
+      'import Counter from "../islands/counter.tsx";\nimport Quote from "../islands/quote.tsx";\n\nexport default function Home() {\n  return (\n    <div>\n      <h1>Chevalier</h1>\n      <p>A file-routed Deno meta-framework that ships islands, not bundles.</p>\n      <Counter start={3} />\n      <h2>Fetch — click to load fake data from /api/quote</h2>\n      <Quote />\n    </div>\n  );\n}\n',
   },
   {
     path: "app/routes/about.tsx",
@@ -70,14 +70,24 @@ const FILES: TemplateFile[] = [
       "export default function About() {\n  return (\n    <div>\n      <h1>About</h1>\n      <p>\n        This page is fully server-rendered static HTML — no island, no client JS\n        for its content. Edit this file in dev to see a full page reload.\n      </p>\n    </div>\n  );\n}\n",
   },
   {
+    path: "app/routes/hello/[name].tsx",
+    contents:
+      '// Dynamic-param page with a loader: /hello/ada → props { params, greeting }.\nimport type { PageLoader } from "chevalier";\n\nexport const loader: PageLoader = (c) => {\n  const name = c.req.param("name");\n  return { greeting: `Hello, ${name}!`, at: new Date().toISOString() };\n};\n\nexport default function Hello(\n  props: { params: { name: string }; greeting: string; at: string },\n) {\n  return (\n    <div>\n      <h1>{props.greeting}</h1>\n      <p>\n        Rendered server-side at {props.at} for param{" "}\n        <code>{props.params.name}</code> — no client JS.\n      </p>\n    </div>\n  );\n}\n',
+  },
+  {
     path: "app/routes/api.ts",
     contents:
-      '// Handler route (export const app) → mounted at /api, serving any HTTP method.\n// Routes are file-relative: "/" is /api, "/echo" is /api/echo.\nimport { Hono } from "hono";\n\nexport const app = new Hono()\n  .get("/", (c) => c.json({ ok: true, route: "/api" }))\n  .post("/echo", async (c) => c.json({ echo: await c.req.json() }));\n',
+      '// Handler route (export const app) → mounted at /api, serving any HTTP method.\n// Routes are file-relative: "/" is /api, "/echo" is /api/echo.\nimport { Hono } from "hono";\n\nconst QUOTES = [\n  "Ship it.",\n  "It works on my machine.",\n  "Islands all the way down.",\n  "Zero JS until you need it.",\n];\n\nexport const app = new Hono()\n  .get("/", (c) => c.json({ ok: true, route: "/api" }))\n  .post("/echo", async (c) => c.json({ echo: await c.req.json() }))\n  // Fake data endpoint the Quote island fetches on click. GET /api/quote.\n  .get("/quote", (c) =>\n    c.json({ quote: QUOTES[Math.floor(Math.random() * QUOTES.length)] }));\n',
   },
   {
     path: "app/islands/counter.tsx",
     contents:
       '// Island (under islands/). Interactive on the client after hydration.\nimport { useState } from "preact/hooks";\n\nexport default function Counter({ start = 0 }: { start?: number }) {\n  const [n, setN] = useState(start);\n  return (\n    <button type="button" onClick={() => setN((v) => v + 1)}>\n      counts: {n}\n    </button>\n  );\n}\n',
+  },
+  {
+    path: "app/islands/quote.tsx",
+    contents:
+      '// Island: fetches fake data from the /api/quote handler on click.\n\nimport { useState } from "preact/hooks";\n\nexport default function Quote() {\n  const [quote, setQuote] = useState<string | null>(null);\n  const [loading, setLoading] = useState(false);\n\n  async function fetchQuote() {\n    setLoading(true);\n    try {\n      const res = await fetch("/api/quote");\n      const data = await res.json();\n      setQuote(data.quote);\n    } finally {\n      setLoading(false);\n    }\n  }\n\n  return (\n    <div>\n      <button type="button" onClick={fetchQuote} disabled={loading}>\n        {loading ? "loading…" : "get a quote"}\n      </button>\n      {quote ? <p>“{quote}”</p> : null}\n    </div>\n  );\n}\n',
   },
 ];
 

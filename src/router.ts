@@ -9,6 +9,9 @@ export interface RouteModule {
   default?: unknown;
   // A Hono sub-app or handlers, HonoX-style.
   app?: unknown;
+  // Optional data loader run before render; its result merges into page props.
+  // Returning a Response short-circuits render (redirect, 404, custom status).
+  loader?: unknown;
 }
 
 export interface Route {

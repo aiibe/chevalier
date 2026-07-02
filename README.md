@@ -112,6 +112,28 @@ The filename is the URL. `index.tsx` → `/`, `blog/[slug].tsx` → `/blog/:slug
 (read it with `c.req.param("slug")`), and `docs/[...rest].tsx` catches
 `/docs/a/b/c`. `_`-prefixed files are convention, never routes.
 
+### Loading data
+
+A page also gets its route `params` as a prop. To fetch data before render,
+`export const loader` — it runs with the Hono context, and whatever object it
+returns is merged into the page props. It may be `async`; render stays sync.
+Return a `Response` instead to short-circuit (redirect, 404, custom status).
+
+```tsx
+// app/routes/blog/[slug].tsx  →  GET /blog/:slug
+import type { PageLoader } from "@chevalier/core";
+
+export const loader: PageLoader = async (c) => {
+  const post = await getPost(c.req.param("slug"));
+  if (!post) return c.notFound(); // Response → skips render
+  return { post };
+};
+
+export default function Post({ post }: { post: Post }) {
+  return <article>{post.title}</article>;
+}
+```
+
 ## Handlers
 
 Any route file can `export const app`, a Hono sub-app that serves any HTTP

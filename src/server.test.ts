@@ -1,5 +1,5 @@
 import { assertEquals } from "@std/assert";
-import { Hono } from "hono";
+import { type Context, Hono } from "hono";
 import { h } from "preact";
 import { buildBoot, createApp } from "./server.ts";
 
@@ -196,6 +196,74 @@ Deno.test("boot <script> omits the nonce attr when none is set", async () => {
   const html = await (await app.request("/")).text();
   assertEquals(html.includes('<script type="module"'), true);
   assertEquals(html.includes("nonce"), false);
+});
+
+Deno.test("dynamic-param page matches and exposes params", async () => {
+  const app = createApp({
+    routes: {
+      "/app/routes/[id].tsx": () =>
+        Promise.resolve({
+          default: (props: { params: { id: string } }) =>
+            h("div", null, `id=${props.params.id}`),
+        }),
+    },
+  });
+
+  const res = await app.request("/42");
+  assertEquals(res.status, 200);
+  assertEquals((await res.text()).includes("id=42"), true);
+
+  // A sub-path under the page still 404s (wildcard mount, pattern mismatch).
+  assertEquals((await app.request("/42/extra")).status, 404);
+});
+
+Deno.test("loader result merges into page props alongside params", async () => {
+  const app = createApp({
+    routes: {
+      "/app/routes/[id].tsx": () =>
+        Promise.resolve({
+          loader: (c: Context) => ({ name: "Ada", id: c.req.param("id") }),
+          default: (props: { params: { id: string }; name: string }) =>
+            h("div", null, `${props.name}#${props.params.id}`),
+        }),
+    },
+  });
+
+  const res = await app.request("/42");
+  assertEquals(res.status, 200);
+  assertEquals((await res.text()).includes("Ada#42"), true);
+});
+
+Deno.test("loader returning a Response short-circuits render", async () => {
+  const app = createApp({
+    routes: {
+      "/app/routes/index.tsx": () =>
+        Promise.resolve({
+          loader: () => new Response(null, { status: 302, headers: { location: "/login" } }),
+          default: () => h("div", null, "should not render"),
+        }),
+    },
+  });
+
+  const res = await app.request("/");
+  assertEquals(res.status, 302);
+  assertEquals(res.headers.get("location"), "/login");
+  assertEquals((await res.text()).includes("should not render"), false);
+});
+
+Deno.test("async loader is awaited before render", async () => {
+  const app = createApp({
+    routes: {
+      "/app/routes/index.tsx": () =>
+        Promise.resolve({
+          loader: () =>
+            Promise.resolve({ msg: "fetched" }),
+          default: (props: { msg: string }) => h("div", null, props.msg),
+        }),
+    },
+  });
+
+  assertEquals((await (await app.request("/")).text()).includes("fetched"), true);
 });
 
 Deno.test("_error page renders in the layout when a route throws", async () => {
