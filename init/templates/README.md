@@ -17,4 +17,15 @@ deno task build     # build the app
 deno task start     # serve the build
 ```
 
-Set `PORT` to change the port (default 8000).
+Serves on port 8000. To change it, run `deno serve` directly with `--port`
+before the entry: `deno serve -A --port 3000 server.prod.ts`.
+
+## Deploy to Deno Deploy
+
+Build first, then ship `dist/` — it's gitignored, so include it explicitly:
+
+```sh
+deno task build
+deno install -Arf jsr:@deno/deployctl
+deployctl deploy --include=dist --include=deno.json --entrypoint=server.prod.ts
+```

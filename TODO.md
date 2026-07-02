@@ -39,3 +39,17 @@
 
 - **`deno.lock` is gitignored.** It exists locally but is untracked, so CI
   resolves deps fresh each run (revisit if reproducible installs matter).
+
+- **No Deno Deploy build preset.** Chevalier requires a manual `deno task build`
+  before deploy since Deploy doesn't run Vite. Automating the build-then-deploy
+  step would close the gap; today the template README's Deploy section documents
+  the manual flow.
+
+- **Precompressed assets (`.br`/`.gz`) not served.** The `/assets/` handler in
+  `server.prod.ts` uses `serveDir`, which doesn't negotiate content-encoding.
+  Only worth it alongside a move to a core `serveStatic` helper.
+
+- **No `public/` support in the template.** Non-hashed static files (favicon,
+  robots.txt) land at the client root, not `/assets/`, so `server.prod.ts` falls
+  them through to the app and 404s. Add a `public/` dir plus a handler branch
+  serving those with revalidation (`Cache-Control: no-cache`) if apps need them.

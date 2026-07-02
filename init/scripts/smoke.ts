@@ -20,7 +20,9 @@ const REPO_ROOT = new URL("../../", import.meta.url).pathname.replace(
 const INIT_MOD = `${REPO_ROOT}/init/mod.ts`;
 const CORE_SRC = `${REPO_ROOT}/src`;
 const PORT = 5199;
+const PROD_PORT = 5198;
 const BASE = `http://127.0.0.1:${PORT}`;
+const PROD_BASE = `http://127.0.0.1:${PROD_PORT}`;
 
 let failed = false;
 const fail = (msg: string) => {
@@ -243,6 +245,137 @@ try {
     if (!(await exists(`${APP}/dist/client/.vite/manifest.json`))) {
       fail("build produced no client manifest");
     } else ok("client manifest present");
+
+    // 5. Production server: server.prod.ts must serve /assets/ with immutable
+    // cache headers, honor If-None-Match, reject non-GET/HEAD + traversal, and
+    // fall through to the app for page routes.
+    if (build.success) {
+      // Pick a real content-hashed chunk to request.
+      let asset: string | undefined;
+      try {
+        for await (const e of Deno.readDir(`${APP}/dist/client/assets`)) {
+          if (e.isFile && e.name.endsWith(".js")) {
+            asset = `/assets/${e.name}`;
+            break;
+          }
+        }
+      } catch { /* no assets dir → asset stays undefined, reported below */ }
+
+      const prod = new Deno.Command("deno", {
+        args: [
+          "serve",
+          "-A",
+          "--port",
+          String(PROD_PORT),
+          "--host",
+          "127.0.0.1",
+          "server.prod.ts",
+        ],
+        cwd: APP,
+        env: { ...Deno.env.toObject(), DENO_DIR },
+        stdout: "piped",
+        stderr: "piped",
+      }).spawn();
+
+      const prodDecoder = new TextDecoder();
+      let prodLog = "";
+      const captureProd = (stream: ReadableStream<Uint8Array>) =>
+        (async () => {
+          for await (const chunk of stream) {
+            prodLog += prodDecoder.decode(chunk);
+          }
+        })();
+      const drainingProd = Promise.all([
+        captureProd(prod.stdout),
+        captureProd(prod.stderr),
+      ]);
+
+      try {
+        let prodReady = false;
+        for (let i = 0; i < 60; i++) {
+          try {
+            const r = await fetch(PROD_BASE, {
+              signal: AbortSignal.timeout(1000),
+            });
+            await r.body?.cancel();
+            prodReady = true;
+            break;
+          } catch {
+            await new Promise((r) => setTimeout(r, 500));
+          }
+        }
+        if (!prodReady) {
+          fail("prod server never became reachable");
+          console.error("--- prod server output ---");
+          console.error(prodLog || "(no output captured)");
+          console.error("--- end prod server output ---");
+        } else {
+          ok("prod server up");
+
+          // Page route: falls through to app.fetch and renders SSR.
+          const home = await (await fetch(PROD_BASE)).text();
+          if (!home.includes("<h1>Chevalier</h1>")) {
+            fail("prod / missing SSR heading (fall-through broken)");
+          } else ok("prod / renders (fall-through)");
+
+          if (!asset) {
+            fail("no hashed chunk found under dist/client/assets");
+          } else {
+            const a = await fetch(`${PROD_BASE}${asset}`);
+            await a.body?.cancel();
+            const cc = a.headers.get("cache-control");
+            const etag = a.headers.get("etag");
+            if (a.status !== 200) {
+              fail(`GET ${asset} not 200 (${a.status})`);
+            } else if (cc !== "public, max-age=31536000, immutable") {
+              fail(`GET ${asset} missing immutable Cache-Control (${cc})`);
+            } else if (!a.headers.get("content-type")?.includes("javascript")) {
+              fail(`GET ${asset} wrong Content-Type`);
+            } else ok("GET /assets/<chunk> → 200 immutable");
+
+            // If-None-Match → 304, still tagged immutable.
+            if (etag) {
+              const nm = await fetch(`${PROD_BASE}${asset}`, {
+                headers: { "if-none-match": etag },
+              });
+              await nm.body?.cancel();
+              if (nm.status !== 304) {
+                fail(`If-None-Match ${asset} not 304 (${nm.status})`);
+              } else if (
+                nm.headers.get("cache-control") !==
+                  "public, max-age=31536000, immutable"
+              ) {
+                fail("304 response missing immutable Cache-Control");
+              } else ok("If-None-Match → 304 immutable");
+            } else fail(`GET ${asset} returned no ETag`);
+
+            // Non-GET/HEAD → 405 (serveDir rejects the method).
+            const post = await fetch(`${PROD_BASE}${asset}`, {
+              method: "POST",
+            });
+            await post.body?.cancel();
+            if (post.status !== 405) {
+              fail(`POST ${asset} not 405 (${post.status})`);
+            } else ok("POST /assets/<chunk> → 405");
+          }
+
+          // Traversal must not escape the assets root.
+          const trav = await fetch(`${PROD_BASE}/assets/../server.prod.ts`);
+          await trav.body?.cancel();
+          if (trav.status === 200) {
+            fail("traversal /assets/../server.prod.ts served a file (200)");
+          } else ok("traversal blocked");
+        }
+      } finally {
+        try {
+          prod.kill("SIGTERM");
+        } catch { /* already terminated */ }
+        try {
+          await prod.status;
+        } catch { /* already gone */ }
+        await drainingProd.catch(() => {});
+      }
+    }
   }
 } finally {
   await Deno.remove(workRoot, { recursive: true }).catch(() => {});

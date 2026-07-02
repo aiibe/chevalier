@@ -22,7 +22,7 @@ const FILES: TemplateFile[] = [
   {
     path: "server.prod.ts",
     contents:
-      '// Production entry: `deno task start` after `deno task build`.\n// The SSR bundle only exports a Hono app; export a { fetch } handler so\n// `deno serve` provides the listener (the Deno Deploy-portable form). Built\n// client chunks are served from dist/client (a real deploy uses a CDN).\nimport app from "./dist/server/server.mjs";\nimport { serveDir } from "@std/http/file-server";\n\nconst CLIENT_DIR = new URL("./dist/client", import.meta.url).pathname;\n\nexport default {\n  fetch(req: Request): Response | Promise<Response> {\n    return new URL(req.url).pathname.startsWith("/assets/")\n      ? serveDir(req, { fsRoot: CLIENT_DIR, quiet: true })\n      : app.fetch(req);\n  },\n};\n',
+      '// Production entry: `deno task start` after `deno task build`.\n// The SSR bundle only exports a Hono app; export a { fetch } handler so\n// `deno serve` provides the listener (the Deno Deploy-portable form). Hashed\n// client chunks under /assets/ are content-hashed by Vite, so they\'re immutable\n// and served with a one-year cache. A CDN in front is still recommended for\n// high traffic. See the README\'s Deploy section.\nimport app from "./dist/server/server.mjs";\nimport { serveDir } from "@std/http/file-server";\n\nconst CLIENT_DIR = new URL("./dist/client", import.meta.url).pathname;\nconst IMMUTABLE = "public, max-age=31536000, immutable";\n\nexport default {\n  async fetch(req: Request): Promise<Response> {\n    const { pathname } = new URL(req.url);\n    if (!pathname.startsWith("/assets/")) return app.fetch(req);\n\n    // serveDir handles path-safety, ETag/304, range, HEAD, and content-type;\n    // it only lacks Cache-Control. Content-hashed names ⇒ tag hits immutable.\n    const res = await serveDir(req, { fsRoot: CLIENT_DIR, quiet: true });\n    if (res.ok || res.status === 304) {\n      const headers = new Headers(res.headers);\n      headers.set("Cache-Control", IMMUTABLE);\n      return new Response(res.body, { status: res.status, headers });\n    }\n    return res;\n  },\n};\n',
   },
   {
     path: ".gitignore",
@@ -32,7 +32,7 @@ const FILES: TemplateFile[] = [
   {
     path: "README.md",
     contents:
-      "# {{NAME}}\n\nA [Chevalier](https://jsr.io/@chevalier/core) app.\n\n```sh\ndeno install\ndeno task dev       # start the dev server\ndeno task check     # format, lint, and type-check\n```\n\nRoutes live in `app/routes/`, islands in `app/islands/`.\n\n## Production\n\n```sh\ndeno task build     # build the app\ndeno task start     # serve the build\n```\n\nSet `PORT` to change the port (default 8000).\n",
+      "# {{NAME}}\n\nA [Chevalier](https://jsr.io/@chevalier/core) app.\n\n```sh\ndeno install\ndeno task dev       # start the dev server\ndeno task check     # format, lint, and type-check\n```\n\nRoutes live in `app/routes/`, islands in `app/islands/`.\n\n## Production\n\n```sh\ndeno task build     # build the app\ndeno task start     # serve the build\n```\n\nServes on port 8000. To change it, run `deno serve` directly with `--port`\nbefore the entry: `deno serve -A --port 3000 server.prod.ts`.\n\n## Deploy to Deno Deploy\n\nBuild first, then ship `dist/` — it's gitignored, so include it explicitly:\n\n```sh\ndeno task build\ndeno install -Arf jsr:@deno/deployctl\ndeployctl deploy --include=dist --include=deno.json --entrypoint=server.prod.ts\n```\n",
   },
   {
     path: "app/server.ts",
