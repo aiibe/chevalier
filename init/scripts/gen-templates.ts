@@ -18,6 +18,7 @@ const MANIFEST: ReadonlyArray<readonly [string, string]> = [
   ["public/favicon.svg", "public/favicon.svg"],
   ["app/server.ts", "app/server.ts"],
   ["app/chevalier-islands.d.ts", "app/chevalier-islands.d.ts"],
+  ["app/chevalier-manifest.d.ts", "app/chevalier-manifest.d.ts"],
   ["app/routes/_layout.tsx", "app/routes/_layout.tsx"],
   ["app/routes/_404.tsx", "app/routes/_404.tsx"],
   ["app/routes/_error.tsx", "app/routes/_error.tsx"],

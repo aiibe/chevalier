@@ -1,4 +1,4 @@
-// Rendered for any unmatched route (status 404). Wired via createApp({ notFound }).
+// Rendered for any unmatched route (status 404). Wired via defineApp({ notFound }).
 export default function NotFound() {
   return (
     <div>

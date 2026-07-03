@@ -1,4 +1,4 @@
-// Rendered when a route throws (status 500). Wired via createApp({ error }).
+// Rendered when a route throws (status 500). Wired via defineApp({ error }).
 export default function ErrorPage({ error }: { error: unknown }) {
   const message = error instanceof Error ? error.message : String(error);
   return (

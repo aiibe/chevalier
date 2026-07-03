@@ -3,6 +3,10 @@
 /** Chunk `name` of chevalier's client entry (kept in sync with src/vite.ts). */
 export const CLIENT_NAME = "chevalier-client";
 
+// Client manifest, project-root-relative. Convention, not derived: the app's
+// client build must use outDir dist/client + manifest:true. Read at SSR-build time.
+export const MANIFEST_PATH = "dist/client/.vite/manifest.json";
+
 /** Dev URL of the chevalier client entry (the virtual module Vite serves). */
 export const CLIENT_DEV_URL = "/@id/chevalier:client";
 

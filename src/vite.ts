@@ -6,7 +6,7 @@ import type { Plugin, ViteDevServer } from "vite";
 import { fileURLToPath } from "node:url";
 import { isIsland, islandId } from "./islands.ts";
 import { compileRouteMatcher } from "./router.ts";
-import { CLIENT_NAME } from "./manifest.ts";
+import { CLIENT_NAME, MANIFEST_PATH } from "./manifest.ts";
 import { devMiddleware } from "./vite/middleware.ts";
 import { discoverIslands, inputKey } from "./vite/islands-discovery.ts";
 import { scopedPrefresh } from "./vite/prefresh.ts";
@@ -19,18 +19,23 @@ export interface ChevalierOptions {
   entry?: string;
   /** Virtual module id exposing the island id → dev-URL map. */
   islandsModuleId?: string;
+  /** Virtual module id exposing the parsed build manifest (undefined in dev). */
+  manifestModuleId?: string;
 }
 
 const DEFAULTS = {
   appRoot: "./app",
   entry: "/app/server.ts",
   islandsModuleId: "virtual:chevalier-islands",
+  manifestModuleId: "virtual:chevalier-manifest",
 };
 
 export function chevalier(options: ChevalierOptions = {}): Plugin[] {
   const opts = { ...DEFAULTS, ...options };
   const virtualId = opts.islandsModuleId;
   const resolvedVirtualId = "\0" + virtualId;
+  const manifestId = opts.manifestModuleId;
+  const resolvedManifestId = "\0" + manifestId;
   // Virtual ids resolve to themselves (no \0), so their dev URLs stay readable:
   // /@id/chevalier:client and /@id/chevalier-island:<id>. The \0 convention
   // would surface as __x00__ in those URLs.
@@ -43,6 +48,7 @@ export function chevalier(options: ChevalierOptions = {}): Plugin[] {
   const islandPrefix = "chevalier-island:";
   const appRootRel = opts.appRoot.replace(/^\.?\//, "");
   let serve = true; // gates prefresh to dev; set from config().env.command
+  let isSsrBuild = false; // set from config().env; gates manifest inlining
   let projectRoot = ""; // resolved config.root; used to locate islands on disk
   // HMR client → its last-reported location.pathname (for route-scoped reloads).
   const clientPaths = new WeakMap<object, string>();
@@ -56,6 +62,7 @@ export function chevalier(options: ChevalierOptions = {}): Plugin[] {
 
     config(config, env) {
       serve = env.command === "serve";
+      isSsrBuild = env.isSsrBuild === true;
       // Client build only: add each island as a Rollup input so it lands in the
       // manifest, where server.ts resolves it via resolveIslandUrl.
       if (env.command === "build" && !env.isSsrBuild) {
@@ -97,6 +104,7 @@ export function chevalier(options: ChevalierOptions = {}): Plugin[] {
 
     resolveId(id) {
       if (id === virtualId) return resolvedVirtualId;
+      if (id === manifestId) return resolvedManifestId;
       if (id === clientVirtualId) return id; // self-resolve, no \0 (see above)
       // Local checkout resolves to file:// — return the plain path Vite loads
       // directly; published is https://jsr.io/… — hand off to the deno plugin.
@@ -126,6 +134,14 @@ export function chevalier(options: ChevalierOptions = {}): Plugin[] {
     load(id) {
       if (id === clientVirtualId) {
         return `export { hydrateIslands } from "chevalier/client";`;
+      }
+      if (id === resolvedManifestId) {
+        // Inline only in the SSR build; the client build has already written
+        // the manifest to disk. Dev + client build resolve to undefined.
+        if (!isSsrBuild) return `export const manifest = undefined;`;
+        const path = `${projectRoot || Deno.cwd()}/${MANIFEST_PATH}`;
+        const json = Deno.readTextFileSync(path);
+        return `export const manifest = ${json};`;
       }
       if (id !== resolvedVirtualId) return;
       // Island id → dev URL literal. Dev-only; a build resolves urls from the

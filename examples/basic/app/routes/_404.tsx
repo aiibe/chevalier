@@ -1,5 +1,5 @@
 // Convention page: rendered for any unmatched route (status 404).
-// Wired via createApp({ notFound }) in server.ts.
+// Wired via defineApp({ notFound }) in server.ts.
 
 export default function NotFound() {
   return (

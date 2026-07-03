@@ -76,7 +76,7 @@ deno add jsr:@chevalier/core
 ```
 
 ```ts
-import { createApp } from "@chevalier/core";
+import { defineApp } from "@chevalier/core";
 ```
 
 Or run the bundled example to see everything working.
@@ -180,14 +180,14 @@ emits no client script at all.
 ## Layout and error pages
 
 `_layout.tsx` wraps every page. `_404.tsx` and `_error.tsx` are opt-in. Import
-their default exports and pass them to `createApp`.
+their default exports and pass them to `defineApp`.
 
 ```ts
 import Layout from "./routes/_layout.tsx";
 import NotFound from "./routes/_404.tsx";
 import ErrorPage from "./routes/_error.tsx";
 
-createApp({ routes, layout: Layout, notFound: NotFound, error: ErrorPage });
+defineApp({ routes, devIslandUrls, manifest, layout: Layout, notFound: NotFound, error: ErrorPage });
 ```
 
 `notFound` renders with status 404 for any unmatched route (and for a page's own

@@ -1,23 +1,5 @@
 # TODO
 
-## High
-
-- **`app/server.ts` is ~45 lines of copy-identical wiring.** Every scaffolded
-  app carries the same PROD-guarded manifest glob/extract, the `secureHeaders` +
-  `NONCE` CSP block, and the `resolveIslandUrls` call — none app-specific, all
-  easy to copy-break and impossible for an app author to debug. Add a core
-  `defineApp()` that takes just the glob results + convention modules and does
-  the manifest extraction, CSP, and island-URL resolution internally. The globs
-  must stay at the call site (Vite rewrites `import.meta.glob` there), but
-  everything else moves to core. Slims the template + example server to a few
-  lines.
-
-- **Nonce-CSP coupling is invisible across the app/core boundary.** The app
-  opts into the nonce CSP by hand in `server.ts`, and it must match the
-  `secureHeadersNonce` key `createApp` reads (`src/server.ts` `readNonce`) — a
-  silent contract with no type link. Fold the CSP setup into `defineApp` above
-  (default on, escape hatch for a custom policy) so core owns both ends.
-
 ## Nice-to-have
 
 - **`vite.config.ts` is ~35 lines of mechanical workarounds.** Preact dedupe,

@@ -3,13 +3,18 @@
 // serves rendered HTML. Mirrors HonoX's createApp signature/shape.
 
 import { type Context, Hono } from "hono";
+import { NONCE, secureHeaders } from "hono/secure-headers";
 import type { ComponentType, VNode } from "preact";
 import { h } from "preact";
 import { renderToString } from "preact-render-to-string";
 import { createRoutes, type Route, type RouteModule } from "./router.ts";
 import { Layout as DefaultLayout, type LayoutProps } from "./layout.tsx";
 import { collectIslands } from "./registry.tsx";
-import { resolveClientEntry, type ViteManifest } from "./manifest.ts";
+import {
+  resolveClientEntry,
+  resolveIslandUrls,
+  type ViteManifest,
+} from "./manifest.ts";
 
 /**
  * Build the per-page boot module: imports each rendered island's chunk and calls
@@ -37,6 +42,9 @@ export function buildBoot(
 
 type Loader<T> = () => Promise<T>;
 
+// Factory options. Not in the public API (mod.ts) — apps use defineApp; these
+// are the resolved inputs (islandUrls mapped, manifest extracted) it hands in.
+// Exported for the co-located test only.
 export interface CreateAppOptions {
   /**
    * Route modules, app-root-relative path → loader. In Vite this is produced
@@ -176,4 +184,44 @@ export function createApp(options: CreateAppOptions): Hono {
   return app;
 }
 
-export default createApp;
+export interface DefineAppOptions {
+  /** Route modules from the app's `import.meta.glob` over `app/routes`. */
+  routes: Record<string, Loader<RouteModule>>;
+  /** Island id → dev URL, from `virtual:chevalier-islands`. */
+  devIslandUrls: Record<string, string>;
+  /** Build manifest from `virtual:chevalier-manifest`; undefined in dev. */
+  manifest?: ViteManifest;
+  layout?: ComponentType<LayoutProps>;
+  notFound?: ComponentType<Record<string, unknown>>;
+  error?: ComponentType<{ error: unknown }>;
+}
+
+/**
+ * The SSR entry: resolves island URLs from the manifest and, in a build,
+ * applies a nonce CSP whose per-request nonce the boot <script> reuses (core
+ * owns both ends of the `secureHeadersNonce` contract readNonce reads).
+ * Manifest presence marks the build.
+ */
+export function defineApp(options: DefineAppOptions): Hono {
+  const { manifest } = options;
+  const base = new Hono();
+  // Nonce CSP is build-only: Vite's dev server injects an un-nonced
+  // /@vite/client that a restrictive script-src would block.
+  if (manifest) {
+    base.use(
+      "*",
+      secureHeaders({ contentSecurityPolicy: { scriptSrc: [NONCE] } }),
+    );
+  }
+  return createApp({
+    app: base,
+    routes: options.routes,
+    layout: options.layout,
+    notFound: options.notFound,
+    error: options.error,
+    manifest,
+    islandUrls: resolveIslandUrls(options.devIslandUrls, manifest),
+  });
+}
+
+export default defineApp;
