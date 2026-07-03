@@ -187,7 +187,14 @@ import Layout from "./routes/_layout.tsx";
 import NotFound from "./routes/_404.tsx";
 import ErrorPage from "./routes/_error.tsx";
 
-defineApp({ routes, devIslandUrls, manifest, layout: Layout, notFound: NotFound, error: ErrorPage });
+defineApp({
+  routes,
+  devIslandUrls,
+  manifest,
+  layout: Layout,
+  notFound: NotFound,
+  error: ErrorPage,
+});
 ```
 
 `notFound` renders with status 404 for any unmatched route (and for a page's own

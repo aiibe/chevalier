@@ -43,7 +43,9 @@ export function chevalier(options: ChevalierOptions = {}): Plugin[] {
   // Registry must be ONE instance so the island wrapper sees the collector
   // server.ts sets (see src/registry.tsx); a bare specifier splits it in two.
   const registryVirtualId = "chevalier:registry";
-  const registryUrl = import.meta.resolve("./registry.tsx");
+  // new URL, not import.meta.resolve: Vite's SSR module runner rewrites resolve()
+  // to a vite-module-runner: scheme the deno loader rejects; import.meta.url stays file://.
+  const registryUrl = new URL("./registry.tsx", import.meta.url).href;
   // Prefix marking a per-island virtual alias → its real source file on disk.
   const islandPrefix = "chevalier-island:";
   const appRootRel = opts.appRoot.replace(/^\.?\//, "");

@@ -1,23 +1,29 @@
 # TODO
 
-## Nice-to-have
+## Critical
 
-- **`vite.config.ts` is ~35 lines of mechanical workarounds.** Preact dedupe,
-  the `npm:preact@x` alias regex, `ssr.noExternal`, `optimizeDeps`, plugin
-  ordering + the `PluginOption[]` cast, and dual `outDir`s are all things core
-  understands and the app shouldn't. Add a `chevalierConfig({ appRoot, entry })`
-  helper returning the config object; the template config collapses to one call.
+- **SSR build (`vite build --ssr`) is broken by `@deno/vite-plugin@2.0.2`.** Its
+  `@jsr/deno__loader` does an ESM `import` of `rs_lib.wasm` that enters the SSR
+  graph under `ssr.noExternal: true`, and Vite's default pipeline can't bundle a
+  `.wasm` (client build is fine; not caused by `chevalierConfig` — repros on the
+  old inline config). Fix by adding `vite-plugin-wasm` to the SSR build, or fold
+  into the Vite 8 migration; externalizing the loader is rejected (bakes an
+  absolute `node_modules` path → breaks on Deno Deploy).
+
+## Nice-to-have
 
 - **`chevalier-islands.d.ts` is a copied shim for a core virtual module.** The
   4-line `declare module "virtual:chevalier-islands"` is identical in every app
   and really belongs to core (it owns the virtual module). Ship it as an ambient
   type from core so apps reference it instead of copying the declaration.
 
-- **Migrate to Vite 8.** Vite 8 replaces esbuild with Oxc as the default
-  transformer, so the `esbuild: { jsx, jsxImportSource }` in the `config` hook
-  (`src/vite.ts`) and the template no longer type-check. Port that JSX config to
-  the `oxc` option and re-run full tests + smoke before widening the `^7` pin;
-  hydration parity with `preact-render-to-string` depends on getting it right.
+- **Migrate to Vite 8.** Vite 8 swaps esbuild for Oxc, which ignores Deno's
+  `jsxImportSource: preact` and breaks config-load (`react/jsx-runtime` error)
+  before the build even starts — spiked and confirmed. Port the preact JSX
+  source to Oxc on both surfaces (the plugin's `config` hook at `src/vite.ts:96`
+  and the config-file bundling), then re-run tests + hydration smoke before
+  widening the `^7` pin. Unconfirmed whether it also fixes the wasm SSR failure
+  above; assume not until proven.
 
 - **`init/templates/` is a hand-kept parallel of `examples/basic`.** The
   embed/drift-guard is done (`init/templates/` real files → `templates.gen.ts`

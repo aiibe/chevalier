@@ -26,3 +26,5 @@ export { isIsland, islandId, normalizePath } from "./islands.ts";
 
 export { chevalier } from "./vite.ts";
 export type { ChevalierOptions } from "./vite.ts";
+
+export { chevalierConfig } from "./vite-config.ts";
