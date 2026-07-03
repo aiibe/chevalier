@@ -5,7 +5,9 @@ export const CORE_VERSION = "^0.0.5";
 
 export interface TemplateFile {
   path: string;
+  // base64 for encoding "base64" (decoded to bytes on write), else file text.
   contents: string;
+  encoding?: "base64";
 }
 
 const FILES: TemplateFile[] = [
@@ -35,14 +37,15 @@ const FILES: TemplateFile[] = [
       "# {{NAME}}\n\nA [Chevalier](https://jsr.io/@chevalier/core) app.\n\n```sh\ndeno install\ndeno task dev       # start the dev server\ndeno task check     # format, lint, and type-check\n```\n\nRoutes live in `app/routes/`, islands in `app/islands/`. Static files (favicon,\nrobots.txt, images) go in `public/` and are served from the site root.\n\n## Production\n\n```sh\ndeno task build     # build the app\ndeno task start     # serve the build\n```\n\nServes on port 8000. To change it, run `deno serve` directly with `--port`\nbefore the entry: `deno serve -A --port 3000 server.prod.ts`.\n\n## Deploy to Deno Deploy\n\nBuild first, then ship `dist/` — it's gitignored, so include it explicitly:\n\n```sh\ndeno task build\ndeno install -Arf jsr:@deno/deployctl\ndeployctl deploy --include=dist --include=deno.json --entrypoint=server.prod.ts\n```\n",
   },
   {
-    path: "public/favicon.svg",
+    path: "public/favicon.png",
     contents:
-      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">\n  <rect width="32" height="32" rx="6" fill="#111827" />\n  <path\n    d="M16 7l7 4v10l-7 4-7-4V11z"\n    fill="none"\n    stroke="#f59e0b"\n    stroke-width="2"\n    stroke-linejoin="round"\n  />\n</svg>\n',
+      "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",
+    encoding: "base64",
   },
   {
     path: "app/routes/_layout.tsx",
     contents:
-      'import type { LayoutProps } from "chevalier";\n\n// `boot` is "" for a page with no islands, shipping zero client JS.\nexport default function Layout(\n  { childrenHtml, boot = "", nonce }: LayoutProps,\n) {\n  return (\n    <html lang="en">\n      <head>\n        <meta charSet="utf-8" />\n        <meta name="viewport" content="width=device-width, initial-scale=1" />\n        <link rel="icon" href="/favicon.svg" type="image/svg+xml" />\n        <title>Chevalier app</title>\n      </head>\n      <body>\n        <nav>\n          <a href="/">home</a> · <a href="/about">about</a> ·{" "}\n          <a href="/greet">greet</a>\n        </nav>\n        <main\n          id="chevalier-root"\n          dangerouslySetInnerHTML={{ __html: childrenHtml }}\n        />\n        {boot\n          ? (\n            <script\n              type="module"\n              nonce={nonce}\n              dangerouslySetInnerHTML={{ __html: boot }}\n            />\n          )\n          : null}\n      </body>\n    </html>\n  );\n}\n',
+      'import type { LayoutProps } from "chevalier";\n\n// `boot` is "" for a page with no islands, shipping zero client JS.\nexport default function Layout(\n  { childrenHtml, boot = "", nonce }: LayoutProps,\n) {\n  return (\n    <html lang="en">\n      <head>\n        <meta charSet="utf-8" />\n        <meta name="viewport" content="width=device-width, initial-scale=1" />\n        <link rel="icon" href="/favicon.png" type="image/png" />\n        <title>Chevalier app</title>\n      </head>\n      <body>\n        <nav>\n          <a href="/">home</a> · <a href="/about">about</a> ·{" "}\n          <a href="/greet">greet</a>\n        </nav>\n        <main\n          id="chevalier-root"\n          dangerouslySetInnerHTML={{ __html: childrenHtml }}\n        />\n        {boot\n          ? (\n            <script\n              type="module"\n              nonce={nonce}\n              dangerouslySetInnerHTML={{ __html: boot }}\n            />\n          )\n          : null}\n      </body>\n    </html>\n  );\n}\n',
   },
   {
     path: "app/routes/_404.tsx",
@@ -91,9 +94,11 @@ const FILES: TemplateFile[] = [
   },
 ];
 
-/** All files for a fresh app, with {{CORE}}/{{NAME}} substituted. */
+/** All files for a fresh app, with {{CORE}}/{{NAME}} substituted in text. */
 export function templateFiles(projectName: string): TemplateFile[] {
   const sub = (s: string) =>
     s.replaceAll("{{CORE}}", CORE_VERSION).replaceAll("{{NAME}}", projectName);
-  return FILES.map((f) => ({ path: f.path, contents: sub(f.contents) }));
+  return FILES.map((f) =>
+    f.encoding === "base64" ? f : { ...f, contents: sub(f.contents) }
+  );
 }

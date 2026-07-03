@@ -62,7 +62,14 @@ async function main() {
     const full = `${dir}/${file.path}`;
     const slash = full.lastIndexOf("/");
     await Deno.mkdir(full.slice(0, slash), { recursive: true });
-    await Deno.writeTextFile(full, file.contents);
+    if (file.encoding === "base64") {
+      // atob keeps the published package dependency-free (no @std/encoding).
+      const bin = atob(file.contents);
+      const bytes = Uint8Array.from(bin, (ch) => ch.charCodeAt(0));
+      await Deno.writeFile(full, bytes);
+    } else {
+      await Deno.writeTextFile(full, file.contents);
+    }
     console.log(`  ${c(GREEN, "+")} ${c(DIM, `${target}/`)}${file.path}`);
   }
 
