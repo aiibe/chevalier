@@ -26,4 +26,4 @@ export { isIsland, islandId, normalizePath } from "./islands.ts";
 
 // The Vite plugin (chevalier/chevalierConfig) ships from the `chevalier/vite`
 // entry, not here: it imports @deno/vite-plugin → a wasm loader, and re-exporting
-// it would drag that into every app/server.ts that imports the barrel at runtime.
+// it would drag that into the SSR runtime bundle that imports this barrel.

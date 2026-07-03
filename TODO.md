@@ -2,23 +2,6 @@
 
 ## Nice-to-have
 
-- **Verify the Vite 8 migration end-to-end before release.** Migration is done
-  and pinned to `^8` (client + SSR build, built-server runtime, dev server, and
-  57 core tests all green on `vite@8.1.3`). The SSR-build breakage is fixed as
-  part of it: `src/mod.ts` was one barrel mixing runtime exports with the
-  build-time plugin (`chevalier`/`chevalierConfig` → `@deno/vite-plugin` →
-  `rs_lib.wasm`), so `app/server.ts` dragged the plugin's wasm into the runtime
-  bundle; split out a `chevalier/vite` export to sever it. Still to do: run the
-  headless-Chrome hydration smoke (`deno task check:hydration`) against the built
-  example, and confirm the `_error.tsx` INEFFECTIVE_DYNAMIC_IMPORT build warning
-  is benign (it predates this — `app/server.ts` both static- and glob-imports the
-  error page).
-
-- **`chevalier-islands.d.ts` is a copied shim for a core virtual module.** The
-  4-line `declare module "virtual:chevalier-islands"` is identical in every app
-  and really belongs to core (it owns the virtual module). Ship it as an ambient
-  type from core so apps reference it instead of copying the declaration.
-
 - **`init/templates/` is a hand-kept parallel of `examples/basic`.** The
   embed/drift-guard is done (`init/templates/` real files → `templates.gen.ts`
   via `deno task gen`, checked in CI by `gen:check`). But the two trees are

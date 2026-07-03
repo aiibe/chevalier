@@ -34,8 +34,8 @@ interface Collector {
   depth: number;
 }
 
-// renderToString is sync/single-threaded, so a module-level "current
-// collector" is safe here — no context threading needed.
+// renderToString is sync/single-threaded, so a module-level current collector
+// is safe — no context threading needed.
 let currentCollector: Collector | null = null;
 
 /** Run `fn` under a fresh collector; returns its result plus the collected ids/props. */

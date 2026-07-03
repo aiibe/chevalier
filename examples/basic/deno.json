@@ -1,7 +1,7 @@
 {
   "tasks": {
     "dev": "vite",
-    "build": "vite build && vite build --ssr app/server.ts",
+    "build": "vite build && vite build --ssr",
     "preview": "vite preview",
     "check:hydration": "deno task build && deno run -A scripts/hydration-check.ts"
   },

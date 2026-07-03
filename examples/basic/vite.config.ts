@@ -1,5 +1,8 @@
 import { defineConfig } from "vite";
-import { chevalierConfig } from "chevalier/vite";
+
+// Dynamic import: a static `import "chevalier/vite"` (import-map specifier)
+// makes Vite's config bundler print a spurious UNRESOLVED_IMPORT.
+const { chevalierConfig } = await import(import.meta.resolve("chevalier/vite"));
 
 const fromHere = (p: string) => `${import.meta.dirname}/${p}`;
 

@@ -1,7 +1,7 @@
 {
   "tasks": {
     "dev": "vite",
-    "build": "vite build && vite build --ssr app/server.ts",
+    "build": "vite build && vite build --ssr",
     "preview": "vite preview",
     "start": "deno serve -A server.prod.ts",
     "check": "deno fmt --check . && deno lint . && deno check"

@@ -217,6 +217,20 @@ try {
         fail("/about missing heading");
       } else ok("/about renders");
 
+      const greet = await (await fetch(`${BASE}/greet?name=ada`)).text();
+      if (!greet.includes("Hello, ada!")) {
+        fail("/greet loader did not render the greeting");
+      } else ok("/greet loader renders submitted name");
+
+      // Empty name → loader returns a redirect (Response short-circuit).
+      const greetRedir = await fetch(`${BASE}/greet?name=`, {
+        redirect: "manual",
+      });
+      await greetRedir.body?.cancel();
+      if (greetRedir.status !== 302) {
+        fail(`/greet empty name not a redirect (${greetRedir.status})`);
+      } else ok("/greet empty name → redirect");
+
       const notFound = await fetch(`${BASE}/does-not-exist`);
       await notFound.body?.cancel();
       if (notFound.status !== 404) {

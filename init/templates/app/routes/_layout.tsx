@@ -14,7 +14,8 @@ export default function Layout(
       </head>
       <body>
         <nav>
-          <a href="/">home</a> · <a href="/about">about</a>
+          <a href="/">home</a> · <a href="/about">about</a> ·{" "}
+          <a href="/greet">greet</a>
         </nav>
         <main
           id="chevalier-root"

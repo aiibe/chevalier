@@ -1,5 +1,6 @@
 import { assertEquals } from "@std/assert";
 import { chevalier } from "./vite.ts";
+import { generateApp } from "./vite/virtual.ts";
 
 // deno-lint-ignore no-explicit-any
 type AnyPlugin = any;
@@ -144,6 +145,39 @@ Deno.test("resolveId — island alias resolves with/without ext and ?t suffix", 
     assertEquals((e as Error).message.includes("islands/missing"), true);
   }
   assertEquals(threw, true, "missing island alias should throw");
+
+  Deno.removeSync(dir, { recursive: true });
+});
+
+// generateApp emits the whole SSR app: a defineApp call with the routes glob
+// (rooted at appRoot, _* excluded) and only the convention pages present on
+// disk. Here _layout + _404 exist, _error doesn't.
+Deno.test("generateApp emits a defineApp app with discovered pages", () => {
+  const dir = Deno.makeTempDirSync();
+  Deno.mkdirSync(`${dir}/app/routes`, { recursive: true });
+  const page = "export default () => null;";
+  Deno.writeTextFileSync(`${dir}/app/routes/_layout.tsx`, page);
+  Deno.writeTextFileSync(`${dir}/app/routes/_404.tsx`, page);
+
+  const code = generateApp("app", dir, {
+    islands: "virtual:chevalier-islands",
+    manifest: "virtual:chevalier-manifest",
+  });
+
+  // Glob rooted at appRoot, with the _* exclusion pattern.
+  assertEquals(code.includes("/app/routes/**/*.{tsx,jsx,ts}"), true);
+  assertEquals(code.includes("!/app/routes/**/_*"), true);
+  // Present pages imported + wired; absent ones omitted.
+  assertEquals(
+    code.includes(`import layout from "/app/routes/_layout.tsx"`),
+    true,
+  );
+  assertEquals(
+    code.includes(`import notFound from "/app/routes/_404.tsx"`),
+    true,
+  );
+  assertEquals(code.includes("_error"), false);
+  assertEquals(code.includes("export default defineApp("), true);
 
   Deno.removeSync(dir, { recursive: true });
 });

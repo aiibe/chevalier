@@ -22,6 +22,7 @@ Pass no directory and it prompts for one (defaults to `my-chevalier-app`).
 A minimal working app to start from:
 
 - A home page with an interactive island, and an about page with none
+- A form page that reads its input server-side
 - A layout, plus 404 and error pages
 - An `/api` handler
 - A hot-reloading dev server

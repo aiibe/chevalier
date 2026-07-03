@@ -6,9 +6,9 @@ import { chevalier, type ChevalierOptions } from "./vite.ts";
 
 type ConfigFn = (env: { isSsrBuild?: boolean }) => UserConfig;
 
-/** Pass appRoot/entry only to override the ./app + /app/server.ts defaults. */
+/** Pass appRoot only to move the app dir; the SSR app is generated. */
 export function chevalierConfig(
-  options: Pick<ChevalierOptions, "appRoot" | "entry"> = {},
+  options: ChevalierOptions = {},
 ): ConfigFn {
   return ({ isSsrBuild }) => ({
     resolve: {

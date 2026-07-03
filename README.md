@@ -66,34 +66,29 @@ deno install
 deno task dev
 ```
 
-Open the printed URL. You get a working app with a page, an island, a static
-page, and a `/api` handler — edit the island and it hot-updates in place.
+Open the printed URL. You get a working app — a page, an island, a static page,
+a form, and a `/api` handler. Edit the island and it hot-updates in place,
+keeping its state; edit a route or `_layout.tsx` and the page does a full
+reload.
 
-Or add Chevalier to an existing project:
-
-```sh
-deno add jsr:@chevalier/core
-```
-
-```ts
-import { defineApp } from "@chevalier/core";
-```
-
-Or run the bundled example to see everything working.
-
-```sh
-cd examples/basic
-deno install
-deno task dev
-```
-
-Open the printed URL. Edit an island and it hot-updates in place, keeping its
-state. Edit a route or `_layout.tsx` and the page does a full reload.
+The scaffolded app comes with these tasks:
 
 ```sh
 deno task dev       # vite dev server
 deno task build     # client + SSR build
 deno task preview   # preview the build
+```
+
+**Already have a project?** Add the core package and import `defineApp`:
+
+```sh
+deno add jsr:@chevalier/core
+```
+
+**Just want to look around?** Run the bundled example:
+
+```sh
+cd examples/basic && deno install && deno task dev
 ```
 
 ## Pages
@@ -179,27 +174,15 @@ emits no client script at all.
 
 ## Layout and error pages
 
-`_layout.tsx` wraps every page. `_404.tsx` and `_error.tsx` are opt-in. Import
-their default exports and pass them to `defineApp`.
+Drop these files in `app/routes/` and Chevalier picks them up — no wiring:
 
-```ts
-import Layout from "./routes/_layout.tsx";
-import NotFound from "./routes/_404.tsx";
-import ErrorPage from "./routes/_error.tsx";
+- `_layout.tsx` wraps every page.
+- `_404.tsx` renders with status 404 for any unmatched route (and for a page's
+  own `c.notFound()`).
+- `_error.tsx` renders with status 500 and receives the thrown `error` as a
+  prop.
 
-defineApp({
-  routes,
-  devIslandUrls,
-  manifest,
-  layout: Layout,
-  notFound: NotFound,
-  error: ErrorPage,
-});
-```
-
-`notFound` renders with status 404 for any unmatched route (and for a page's own
-`c.notFound()`). `error` renders with status 500 and receives the thrown `error`
-as a prop. Omit either to fall back to Hono's defaults.
+`_404` and `_error` are opt-in; omit either to fall back to Hono's defaults.
 
 ## Alternatives
 

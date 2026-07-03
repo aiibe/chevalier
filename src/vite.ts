@@ -1,53 +1,63 @@
 // Vite plugin: dev SSR middleware, client/island build inputs, island HMR.
 // Routes/_layout full-reload (server-owned SSR); islands HMR via prefresh.
-// Internals split under src/vite/: middleware, island discovery, prefresh, reload.
+// Internals split under src/vite/: middleware, island discovery, prefresh,
+// reload, virtual-module codegen.
 
 import type { Plugin, ViteDevServer } from "vite";
 import { fileURLToPath } from "node:url";
 import { isIsland, islandId } from "./islands.ts";
 import { compileRouteMatcher } from "./router.ts";
-import { CLIENT_NAME, MANIFEST_PATH } from "./manifest.ts";
+import { CLIENT_NAME } from "./manifest.ts";
 import { devMiddleware } from "./vite/middleware.ts";
 import { discoverIslands, inputKey } from "./vite/islands-discovery.ts";
 import { scopedPrefresh } from "./vite/prefresh.ts";
 import { appRel, invalidateSsrImporters, reloadKind } from "./vite/reload.ts";
+import {
+  generateApp,
+  generateIslandUrls,
+  generateManifest,
+} from "./vite/virtual.ts";
 
 export interface ChevalierOptions {
   /** App root relative to project root. Default: "./app". */
   appRoot?: string;
-  /** SSR server entry. Default: "/app/server.ts". */
-  entry?: string;
 }
 
 const DEFAULTS = {
   appRoot: "./app",
-  entry: "/app/server.ts",
 };
 
-// Virtual module ids: island id → dev-URL map, and the parsed build manifest.
+// Virtual module ids: island id → dev-URL map, the parsed build manifest, and
+// the generated SSR app (routes glob + islands + manifest + convention pages).
 const virtualId = "virtual:chevalier-islands";
 const manifestId = "virtual:chevalier-manifest";
+const appId = "virtual:chevalier-app";
+// The SSR entry is always the generated app — dev middleware loads it and the
+// SSR build inputs it. Not an option: an app can't replace it without
+// re-implementing defineApp's wiring by hand.
+const entry = appId;
 
 export function chevalier(options: ChevalierOptions = {}): Plugin[] {
   const opts = { ...DEFAULTS, ...options };
   const resolvedVirtualId = "\0" + virtualId;
   const resolvedManifestId = "\0" + manifestId;
+  const resolvedAppId = "\0" + appId;
   // Virtual ids resolve to themselves (no \0), so their dev URLs stay readable:
   // /@id/chevalier:client and /@id/chevalier-island:<id>. The \0 convention
   // would surface as __x00__ in those URLs.
   const clientVirtualId = "chevalier:client";
-  // Registry must be ONE instance so the island wrapper sees the collector
-  // server.ts sets (see src/registry.tsx); a bare specifier splits it in two.
+  // Registry must be ONE instance so the island wrapper sees the collector the
+  // SSR render sets (see src/registry.tsx); a bare specifier splits it in two.
   const registryVirtualId = "chevalier:registry";
   // new URL, not import.meta.resolve: Vite's SSR module runner rewrites resolve()
   // to a vite-module-runner: scheme the deno loader rejects; import.meta.url stays file://.
   const registryUrl = new URL("./registry.tsx", import.meta.url).href;
-  // Prefix marking a per-island virtual alias → its real source file on disk.
+  // Per-island virtual alias → its real source file on disk.
   const islandPrefix = "chevalier-island:";
   const appRootRel = opts.appRoot.replace(/^\.?\//, "");
-  let serve = true; // gates prefresh to dev; set from config().env.command
-  let isSsrBuild = false; // set from config().env; gates manifest inlining
-  let projectRoot = ""; // resolved config.root; used to locate islands on disk
+  let serve = true; // gates prefresh to dev
+  let isSsrBuild = false; // gates manifest inlining
+  let projectRoot = ""; // config.root; locates islands on disk
   // HMR client → its last-reported location.pathname (for route-scoped reloads).
   const clientPaths = new WeakMap<object, string>();
   // Re-scan on each call: a dev island add/remove must reflect immediately.
@@ -62,7 +72,7 @@ export function chevalier(options: ChevalierOptions = {}): Plugin[] {
       serve = env.command === "serve";
       isSsrBuild = env.isSsrBuild === true;
       // Client build only: add each island as a Rollup input so it lands in the
-      // manifest, where server.ts resolves it via resolveIslandUrl.
+      // manifest, where the SSR app resolves it via resolveIslandUrl.
       if (env.command === "build" && !env.isSsrBuild) {
         const islands = islandMap(config.root ?? Deno.cwd());
         const existing = config.build?.rollupOptions?.input;
@@ -73,8 +83,7 @@ export function chevalier(options: ChevalierOptions = {}): Plugin[] {
           for (const e of existing) input[inputKey(e)] = e;
         } else if (existing) Object.assign(input, existing);
         Object.assign(input, islands);
-        // The chevalier client entry — keyed by CLIENT_NAME so the chunk's
-        // manifest `name` is stable for resolveClientEntry.
+        // Keyed by CLIENT_NAME so the chunk's manifest `name` is stable for resolveClientEntry.
         input[CLIENT_NAME] = clientVirtualId;
         config.build ??= {};
         config.build.rollupOptions ??= {};
@@ -82,6 +91,15 @@ export function chevalier(options: ChevalierOptions = {}): Plugin[] {
         // Default preserveEntrySignatures:false drops the client entry's
         // `hydrateIslands` export, which the per-page boot script needs by name.
         config.build.rollupOptions.preserveEntrySignatures = "allow-extension";
+      }
+
+      // SSR build: point Rollup at the entry (default: the generated app) so
+      // `vite build --ssr` needs no path arg. Force the "server" chunk name —
+      // server.prod.ts imports dist/server/server.mjs.
+      if (env.command === "build" && env.isSsrBuild) {
+        config.build ??= {};
+        config.build.rollupOptions ??= {};
+        config.build.rollupOptions.input ??= { server: entry };
       }
 
       return {
@@ -104,6 +122,7 @@ export function chevalier(options: ChevalierOptions = {}): Plugin[] {
     resolveId(id) {
       if (id === virtualId) return resolvedVirtualId;
       if (id === manifestId) return resolvedManifestId;
+      if (id === appId) return resolvedAppId;
       if (id === clientVirtualId) return id; // self-resolve, no \0 (see above)
       // Local checkout resolves to file:// — return the plain path Vite loads
       // directly; published is https://jsr.io/… — hand off to the deno plugin.
@@ -131,26 +150,20 @@ export function chevalier(options: ChevalierOptions = {}): Plugin[] {
     },
 
     load(id) {
+      const root = projectRoot || Deno.cwd();
       if (id === clientVirtualId) {
         return `export { hydrateIslands } from "chevalier/client";`;
       }
-      if (id === resolvedManifestId) {
-        // Inline only in the SSR build; the client build has already written
-        // the manifest to disk. Dev + client build resolve to undefined.
-        if (!isSsrBuild) return `export const manifest = undefined;`;
-        const path = `${projectRoot || Deno.cwd()}/${MANIFEST_PATH}`;
-        const json = Deno.readTextFileSync(path);
-        return `export const manifest = ${json};`;
+      if (id === resolvedAppId) {
+        return generateApp(appRootRel, root, {
+          islands: virtualId,
+          manifest: manifestId,
+        });
       }
-      if (id !== resolvedVirtualId) return;
-      // Island id → dev URL literal. Dev-only; a build resolves urls from the
-      // manifest (resolveIslandUrl).
-      const islands = islandMap();
-      const urls: Record<string, string> = {};
-      for (const islandKey of Object.keys(islands)) {
-        urls[islandKey] = `/@id/${islandPrefix}${islandKey}`;
+      if (id === resolvedManifestId) return generateManifest(isSsrBuild, root);
+      if (id === resolvedVirtualId) {
+        return generateIslandUrls(islandMap(root), islandPrefix);
       }
-      return `export const urls = ${JSON.stringify(urls)};`;
     },
 
     // SSR-only: wrap the island's default export with the hydration marker so
@@ -200,7 +213,6 @@ export function chevalier(options: ChevalierOptions = {}): Plugin[] {
       server.watcher.on("add", onIslandStructureChange);
       server.watcher.on("unlink", onIslandStructureChange);
 
-      // Record each client's reported pathname, keyed by the client object.
       server.ws.on(
         "chevalier:route",
         (data: { pathname?: unknown }, client: object) => {
@@ -211,7 +223,7 @@ export function chevalier(options: ChevalierOptions = {}): Plugin[] {
       );
 
       // Post hook: our SSR app is the fallthrough, after Vite's own middlewares.
-      return () => server.middlewares.use(devMiddleware(server, opts.entry));
+      return () => server.middlewares.use(devMiddleware(server, entry));
     },
 
     handleHotUpdate({ file, server }: { file: string; server: ViteDevServer }) {

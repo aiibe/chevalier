@@ -89,8 +89,7 @@ export function createApp(options: CreateAppOptions): Hono {
   const islandUrls = options.islandUrls ?? {};
   const routes: Route[] = createRoutes(options.routes);
 
-  // Two-pass render: collect the page's islands + HTML first, then render the
-  // shell with that HTML and the scoped boot script.
+  // Two-pass: collect islands + HTML, then render the shell with the boot script.
   const renderDoc = (
     Page: ComponentType<Record<string, unknown>>,
     props: Record<string, unknown>,
@@ -118,8 +117,8 @@ export function createApp(options: CreateAppOptions): Hono {
     const mod = await route.load();
 
     if (isHandlerModule(mod)) {
-      // Strip the mount prefix so handler routes are file-relative
-      // (`.post("/")`, not `.post("/api")`). See TODO.md.
+      // Strip the mount prefix so handler routes stay file-relative
+      // (`.post("/")`, not `.post("/api")`).
       const url = new URL(c.req.raw.url);
       url.pathname = url.pathname.slice(route.path.length) || "/";
       return mod.app.fetch(new Request(url, c.req.raw), c.env as never);
