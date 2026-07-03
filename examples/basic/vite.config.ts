@@ -1,5 +1,5 @@
 import { defineConfig } from "vite";
-import { chevalierConfig } from "../../src/mod.ts";
+import { chevalierConfig } from "chevalier/vite";
 
 const fromHere = (p: string) => `${import.meta.dirname}/${p}`;
 
@@ -23,6 +23,10 @@ export default defineConfig((env) => {
         {
           find: "chevalier/registry",
           replacement: fromHere("../../src/registry.tsx"),
+        },
+        {
+          find: "chevalier/vite",
+          replacement: fromHere("../../src/vite-config.ts"),
         },
         { find: "chevalier", replacement: fromHere("../../src/mod.ts") },
         ...baseAlias,

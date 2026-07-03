@@ -6,7 +6,8 @@
     ".": "./src/mod.ts",
     "./client": "./src/client.ts",
     "./registry": "./src/registry.tsx",
-    "./static": "./src/static.ts"
+    "./static": "./src/static.ts",
+    "./vite": "./src/vite-config.ts"
   },
   "publish": {
     "include": [
@@ -33,7 +34,7 @@
     "preact": "npm:preact@^10.24.0",
     "preact/": "npm:/preact@^10.24.0/",
     "preact-render-to-string": "npm:preact-render-to-string@^6.5.0",
-    "vite": "npm:vite@^7.0.0",
+    "vite": "npm:vite@^8.0.0",
     "@deno/vite-plugin": "npm:@deno/vite-plugin@^2.0.2",
     "@prefresh/vite": "npm:@prefresh/vite@^2.4.0"
   },

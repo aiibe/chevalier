@@ -17,24 +17,20 @@ export interface ChevalierOptions {
   appRoot?: string;
   /** SSR server entry. Default: "/app/server.ts". */
   entry?: string;
-  /** Virtual module id exposing the island id → dev-URL map. */
-  islandsModuleId?: string;
-  /** Virtual module id exposing the parsed build manifest (undefined in dev). */
-  manifestModuleId?: string;
 }
 
 const DEFAULTS = {
   appRoot: "./app",
   entry: "/app/server.ts",
-  islandsModuleId: "virtual:chevalier-islands",
-  manifestModuleId: "virtual:chevalier-manifest",
 };
+
+// Virtual module ids: island id → dev-URL map, and the parsed build manifest.
+const virtualId = "virtual:chevalier-islands";
+const manifestId = "virtual:chevalier-manifest";
 
 export function chevalier(options: ChevalierOptions = {}): Plugin[] {
   const opts = { ...DEFAULTS, ...options };
-  const virtualId = opts.islandsModuleId;
   const resolvedVirtualId = "\0" + virtualId;
-  const manifestId = opts.manifestModuleId;
   const resolvedManifestId = "\0" + manifestId;
   // Virtual ids resolve to themselves (no \0), so their dev URLs stay readable:
   // /@id/chevalier:client and /@id/chevalier-island:<id>. The \0 convention
@@ -93,7 +89,8 @@ export function chevalier(options: ChevalierOptions = {}): Plugin[] {
         // URLs to /index.html before our SSR middleware sees them.
         appType: "custom",
         // Hydration parity with preact-render-to-string SSR output.
-        esbuild: { jsx: "automatic", jsxImportSource: "preact" },
+        // Vite 8 transforms JSX via Oxc, not esbuild.
+        oxc: { jsx: { runtime: "automatic", importSource: "preact" } },
         resolve: {
           alias: { "react": "preact/compat", "react-dom": "preact/compat" },
         },

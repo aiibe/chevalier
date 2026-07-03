@@ -24,7 +24,6 @@ export type { Route, RouteModule } from "./router.ts";
 
 export { isIsland, islandId, normalizePath } from "./islands.ts";
 
-export { chevalier } from "./vite.ts";
-export type { ChevalierOptions } from "./vite.ts";
-
-export { chevalierConfig } from "./vite-config.ts";
+// The Vite plugin (chevalier/chevalierConfig) ships from the `chevalier/vite`
+// entry, not here: it imports @deno/vite-plugin → a wasm loader, and re-exporting
+// it would drag that into every app/server.ts that imports the barrel at runtime.
