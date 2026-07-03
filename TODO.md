@@ -25,8 +25,8 @@
 - **Form POST has no paved path.** Pages are GET-only, so a real mutating form
   (login, create-post) must route through a separate `export const app` handler
   that redirects back — the `greet` example sidesteps this by GETting the query.
-  Not a code gap but a missing documented pattern: add one canonical
-  POST-form → handler → redirect example + a README section, so users aren't
+  Not a code gap but a missing documented pattern: add one canonical POST-form →
+  handler → redirect example + a README section, so users aren't
   reverse-engineering the GET-only rule.
 
 - **`init/templates/` is a hand-kept parallel of `examples/basic`.** The
