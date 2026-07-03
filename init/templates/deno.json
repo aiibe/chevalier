@@ -7,10 +7,10 @@
     "check": "deno fmt --check . && deno lint . && deno check"
   },
   "imports": {
-    "@std/http": "jsr:@std/http@^1",
     "chevalier": "jsr:@chevalier/core@{{CORE}}",
     "chevalier/client": "jsr:@chevalier/core@{{CORE}}/client",
     "chevalier/registry": "jsr:@chevalier/core@{{CORE}}/registry",
+    "chevalier/static": "jsr:@chevalier/core@{{CORE}}/static",
     "hono": "npm:hono@^4.6.0",
     "preact": "npm:preact@^10.24.0",
     "preact/": "npm:/preact@^10.24.0/",

@@ -1,28 +1,24 @@
 // Production entry: `deno task start` after `deno task build`.
 // The SSR bundle only exports a Hono app; export a { fetch } handler so
-// `deno serve` provides the listener (the Deno Deploy-portable form). Hashed
-// client chunks under /assets/ are content-hashed by Vite, so they're immutable
-// and served with a one-year cache. A CDN in front is still recommended for
-// high traffic. See the README's Deploy section.
+// `deno serve` provides the listener (the Deno Deploy-portable form). Static
+// files live under dist/client: hashed chunks in /assets/ (immutable) plus
+// public/ files copied to the root (favicon etc., revalidated). Anything not on
+// disk falls through to the app's SSR routes. A CDN in front is still
+// recommended for high traffic. See the README's Deploy section.
 import app from "./dist/server/server.mjs";
-import { serveDir } from "@std/http/file-server";
+import { serveStatic } from "chevalier/static";
 
 const CLIENT_DIR = new URL("./dist/client", import.meta.url).pathname;
+// Content-hashed names ⇒ safe to pin forever. Public files keep stable names,
+// so they must revalidate or a favicon swap never propagates.
 const IMMUTABLE = "public, max-age=31536000, immutable";
+const REVALIDATE = "public, no-cache";
 
 export default {
-  async fetch(req: Request): Promise<Response> {
-    const { pathname } = new URL(req.url);
-    if (!pathname.startsWith("/assets/")) return app.fetch(req);
-
-    // serveDir handles path-safety, ETag/304, range, HEAD, and content-type;
-    // it only lacks Cache-Control. Content-hashed names ⇒ tag hits immutable.
-    const res = await serveDir(req, { fsRoot: CLIENT_DIR, quiet: true });
-    if (res.ok || res.status === 304) {
-      const headers = new Headers(res.headers);
-      headers.set("Cache-Control", IMMUTABLE);
-      return new Response(res.body, { status: res.status, headers });
-    }
-    return res;
-  },
+  fetch: serveStatic({
+    fsRoot: CLIENT_DIR,
+    fallthrough: (req) => app.fetch(req),
+    cacheControl: (pathname) =>
+      pathname.startsWith("/assets/") ? IMMUTABLE : REVALIDATE,
+  }),
 };

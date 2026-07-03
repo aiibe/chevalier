@@ -95,7 +95,12 @@ try {
     await Deno.writeTextFile(denoJsonPath, JSON.stringify(cfg, null, 2) + "\n");
     const map = cfg.imports as Record<string, string>;
     for (
-      const spec of ["chevalier", "chevalier/client", "chevalier/registry"]
+      const spec of [
+        "chevalier",
+        "chevalier/client",
+        "chevalier/registry",
+        "chevalier/static",
+      ]
     ) {
       // Explicit try/catch + Deno.exit: `deno eval` exits 0 even on an uncaught
       // top-level import rejection, so a bare `await import(...)` false-passes.
@@ -128,6 +133,10 @@ try {
       .replace(
         /"chevalier\/registry":\s*"[^"]*"/,
         `"chevalier/registry": "${CORE_SRC}/registry.tsx"`,
+      )
+      .replace(
+        /"chevalier\/static":\s*"[^"]*"/,
+        `"chevalier/static": "${CORE_SRC}/static.ts"`,
       );
     if (patched === denoJson) {
       fail("import-map repoint matched nothing — template shape changed");
@@ -247,8 +256,9 @@ try {
     } else ok("client manifest present");
 
     // 5. Production server: server.prod.ts must serve /assets/ with immutable
-    // cache headers, honor If-None-Match, reject non-GET/HEAD + traversal, and
-    // fall through to the app for page routes.
+    // cache headers, honor If-None-Match, reject non-GET/HEAD + traversal, serve
+    // public/ files (favicon) revalidated from the root, and fall through to the
+    // app for page routes.
     if (build.success) {
       // Pick a real content-hashed chunk to request.
       let asset: string | undefined;
@@ -365,6 +375,19 @@ try {
           if (trav.status === 200) {
             fail("traversal /assets/../server.prod.ts served a file (200)");
           } else ok("traversal blocked");
+
+          // public/ file: served from root with a stable name, so it must
+          // revalidate (no-cache), not pin immutable like hashed /assets/.
+          const fav = await fetch(`${PROD_BASE}/favicon.svg`);
+          await fav.body?.cancel();
+          const favCc = fav.headers.get("cache-control");
+          if (fav.status !== 200) {
+            fail(`GET /favicon.svg not 200 (${fav.status})`);
+          } else if (favCc !== "public, no-cache") {
+            fail(`GET /favicon.svg wrong Cache-Control (${favCc})`);
+          } else if (!fav.headers.get("content-type")?.includes("svg")) {
+            fail(`GET /favicon.svg wrong Content-Type`);
+          } else ok("GET /favicon.svg → 200 revalidated");
         }
       } finally {
         try {

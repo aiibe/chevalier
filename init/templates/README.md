@@ -8,7 +8,8 @@ deno task dev       # start the dev server
 deno task check     # format, lint, and type-check
 ```
 
-Routes live in `app/routes/`, islands in `app/islands/`.
+Routes live in `app/routes/`, islands in `app/islands/`. Static files (favicon,
+robots.txt, images) go in `public/` and are served from the site root.
 
 ## Production
 

@@ -15,6 +15,7 @@ const MANIFEST: ReadonlyArray<readonly [string, string]> = [
   ["server.prod.ts", "server.prod.ts"],
   ["gitignore", ".gitignore"],
   ["README.md", "README.md"],
+  ["public/favicon.svg", "public/favicon.svg"],
   ["app/server.ts", "app/server.ts"],
   ["app/chevalier-islands.d.ts", "app/chevalier-islands.d.ts"],
   ["app/routes/_layout.tsx", "app/routes/_layout.tsx"],
