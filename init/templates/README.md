@@ -11,6 +11,9 @@ deno task check     # format, lint, and type-check
 Routes live in `app/routes/`, islands in `app/islands/`. Static files (favicon,
 robots.txt, images) go in `public/` and are served from the site root.
 
+Styling is [Tailwind](https://tailwindcss.com) v4 — write utility classes in any
+component. Add your own CSS or `@theme` in `app/styles.css`.
+
 ## Production
 
 ```sh

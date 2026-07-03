@@ -1,7 +1,7 @@
 import { assertEquals } from "@std/assert";
 import { type Context, Hono } from "hono";
 import { h } from "preact";
-import { buildBoot, createApp } from "./server.ts";
+import { buildBoot, createApp, defineApp } from "./server.ts";
 
 Deno.test("buildBoot — no islands ships zero JS", () => {
   assertEquals(buildBoot([], [], {}, "/app/client.ts"), "");
@@ -91,6 +91,64 @@ Deno.test("page route is GET-only — POST falls through to 404", async () => {
 
   assertEquals((await app.request("/")).status, 200);
   assertEquals((await app.request("/", { method: "POST" })).status, 404);
+});
+
+Deno.test("createApp injects styles into the default layout <head>", async () => {
+  const app = createApp({
+    routes: {
+      "/app/routes/index.tsx": () =>
+        Promise.resolve({ default: () => h("div", null, "home") }),
+    },
+    styles: [
+      { href: "/assets/styles-abc.css", dev: false }, // build → <link>
+      { href: "/app/other.css", dev: true }, // dev → <script>
+    ],
+  });
+
+  const html = await (await app.request("/")).text();
+  assertEquals(
+    html.includes('<link rel="stylesheet" href="/assets/styles-abc.css"'),
+    true,
+  );
+  assertEquals(
+    html.includes('<script type="module" src="/app/other.css"'),
+    true,
+  );
+});
+
+Deno.test("defineApp resolves styles paths against the manifest", async () => {
+  const manifest = {
+    "app/styles.css": { file: "assets/styles-Zx9.css", name: "styles" },
+  };
+  const app = defineApp({
+    routes: {
+      "/app/routes/index.tsx": () =>
+        Promise.resolve({ default: () => h("div", null, "home") }),
+    },
+    devIslandUrls: {},
+    manifest,
+  });
+
+  const html = await (await app.request("/")).text();
+  // Default styles=["app/styles.css"] → hashed asset from the manifest.
+  assertEquals(
+    html.includes('<link rel="stylesheet" href="/assets/styles-Zx9.css"'),
+    true,
+  );
+});
+
+Deno.test("defineApp with styles:[] links no stylesheet", async () => {
+  const app = defineApp({
+    routes: {
+      "/app/routes/index.tsx": () =>
+        Promise.resolve({ default: () => h("div", null, "home") }),
+    },
+    devIslandUrls: {},
+    styles: [],
+  });
+
+  const html = await (await app.request("/")).text();
+  assertEquals(html.includes("stylesheet"), false);
 });
 
 Deno.test("_404 page renders in the layout for unmatched routes", async () => {

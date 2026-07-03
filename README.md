@@ -53,6 +53,9 @@ export default function Home() {
   (Preact Fast Refresh). Route and layout edits force a full reload.
 - 🔥 **Hono all the way down.** The HTTP layer stays [Hono](https://hono.dev).
   Any route file can `export const app` to serve any method, as a Hono sub-app.
+- 🎨 **Tailwind v4.** Scaffolds with [Tailwind](https://tailwindcss.com) wired
+  for dev and production — utility classes work in pages and islands out of the
+  box.
 - 🦕 **Deno-native.** JSR package, Vite dev server, no `package.json`.
 
 ## Getting started

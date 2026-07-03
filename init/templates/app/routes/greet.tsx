@@ -12,13 +12,22 @@ export const loader: PageLoader = (c) => {
 
 export default function Greet(props: { greeting?: string }) {
   return (
-    <div>
-      <h1>Greet</h1>
-      <form method="get">
-        <input name="name" placeholder="your name" />
-        <button type="submit">greet</button>
+    <div class="space-y-4">
+      <h1 class="text-3xl font-bold">Greet</h1>
+      <form method="get" class="flex gap-2">
+        <input
+          name="name"
+          placeholder="your name"
+          class="rounded border border-gray-300 px-3 py-1.5"
+        />
+        <button
+          type="submit"
+          class="rounded bg-gray-900 px-3 py-1.5 text-white hover:bg-gray-700"
+        >
+          greet
+        </button>
       </form>
-      {props.greeting ? <p>{props.greeting}</p> : null}
+      {props.greeting ? <p class="text-gray-600">{props.greeting}</p> : null}
     </div>
   );
 }

@@ -4,6 +4,7 @@
 // `boot` is "" for a page with no islands, so the <script> is omitted entirely.
 
 import type { VNode } from "preact";
+import type { StyleEntry } from "./manifest.ts";
 
 export interface LayoutProps {
   /** Pre-rendered inner page HTML, injected raw via dangerouslySetInnerHTML. */
@@ -12,18 +13,44 @@ export interface LayoutProps {
   boot?: string;
   /** Per-request CSP nonce for the inline boot <script>; undefined → no attr. */
   nonce?: string;
+  /** Resolved stylesheets, from defineApp's `styles`. Render with <Stylesheets>. */
+  styles?: StyleEntry[];
   title?: string;
   head?: VNode | VNode[];
 }
 
+/**
+ * Renders the app's stylesheets in <head>. A build emits a hashed .css (plain
+ * <link>). Dev pairs a render-blocking <link ...?direct> (raw CSS, no FOUC on
+ * navigation) with a <script> module for HMR — see StyleEntry.
+ */
+export function Stylesheets({ styles = [] }: { styles?: StyleEntry[] }): VNode {
+  return (
+    <>
+      {styles.map((s) =>
+        s.dev
+          ? (
+            <>
+              <link key={s.href} rel="stylesheet" href={`${s.href}?direct`} />
+              <script key={`${s.href}#hmr`} type="module" src={s.href} />
+            </>
+          )
+          : <link key={s.href} rel="stylesheet" href={s.href} />
+      )}
+    </>
+  );
+}
+
 export function Layout(
-  { childrenHtml, boot = "", nonce, title = "Chevalier", head }: LayoutProps,
+  { childrenHtml, boot = "", nonce, styles, title = "Chevalier", head }:
+    LayoutProps,
 ): VNode {
   return (
     <html lang="en">
       <head>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <Stylesheets styles={styles} />
         <title>{title}</title>
         {head}
       </head>

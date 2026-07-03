@@ -10,6 +10,25 @@ export const MANIFEST_PATH = "dist/client/.vite/manifest.json";
 /** Dev URL of the chevalier client entry (the virtual module Vite serves). */
 export const CLIENT_DEV_URL = "/@id/chevalier:client";
 
+/** Resolved location of a CSS entry for the layout; see styleUrl. */
+export interface StyleEntry {
+  href: string;
+  /** Dev: a JS module (load via <script type=module>), not a .css <link>. */
+  dev: boolean;
+}
+
+/**
+ * Resolve a CSS entry (e.g. "app/styles.css") for the layout. Dev serves it as
+ * a style-injecting JS module, a build emits a hashed .css asset — hence `dev`,
+ * which picks <script> vs <link>. Missing build chunk degrades to the dev URL.
+ */
+export function styleUrl(src: string, manifest?: ViteManifest): StyleEntry {
+  const key = src.replace(/^\.?\//, "");
+  const chunk = manifest?.[key];
+  if (!chunk) return { href: "/" + key, dev: true };
+  return { href: "/" + chunk.file.replace(/^\//, ""), dev: false };
+}
+
 export interface ViteManifestChunk {
   /** Emitted file, manifest-root-relative (e.g. "assets/client-Dv3fyGqv.js"). */
   file: string;

@@ -13,6 +13,8 @@ import { collectIslands } from "./registry.tsx";
 import {
   resolveClientEntry,
   resolveIslandUrls,
+  type StyleEntry,
+  styleUrl,
   type ViteManifest,
 } from "./manifest.ts";
 
@@ -61,6 +63,8 @@ export interface CreateAppOptions {
   error?: ComponentType<{ error: unknown }>;
   /** Parsed `.vite/manifest.json`; resolves the client entry to its hashed chunk. */
   manifest?: ViteManifest;
+  /** Resolved stylesheets, injected into every layout render (defineApp maps `styles`). */
+  styles?: StyleEntry[];
   /** Base Hono app to mount onto (default: new Hono). */
   app?: Hono;
 }
@@ -87,6 +91,7 @@ export function createApp(options: CreateAppOptions): Hono {
   const Layout = options.layout ?? DefaultLayout;
   const clientEntry = resolveClientEntry(options.manifest);
   const islandUrls = options.islandUrls ?? {};
+  const styles = options.styles ?? [];
   const routes: Route[] = createRoutes(options.routes);
 
   // Two-pass: collect islands + HTML, then render the shell with the boot script.
@@ -101,7 +106,7 @@ export function createApp(options: CreateAppOptions): Hono {
     const boot = buildBoot(ids, islandProps, islandUrls, clientEntry);
     const doc = h(
       Layout as ComponentType<LayoutProps>,
-      { childrenHtml, boot, nonce } satisfies LayoutProps,
+      { childrenHtml, boot, nonce, styles } satisfies LayoutProps,
     ) as VNode;
     return "<!DOCTYPE html>" + renderToString(doc);
   };
@@ -190,6 +195,11 @@ export interface DefineAppOptions {
   devIslandUrls: Record<string, string>;
   /** Build manifest from `virtual:chevalier-manifest`; undefined in dev. */
   manifest?: ViteManifest;
+  /**
+   * CSS entry source paths to link in <head>, resolved against the manifest.
+   * Default `["app/styles.css"]` (the scaffold's Tailwind entry). `[]` to opt out.
+   */
+  styles?: string[];
   layout?: ComponentType<LayoutProps>;
   notFound?: ComponentType<Record<string, unknown>>;
   error?: ComponentType<{ error: unknown }>;
@@ -202,7 +212,7 @@ export interface DefineAppOptions {
  * Manifest presence marks the build.
  */
 export function defineApp(options: DefineAppOptions): Hono {
-  const { manifest } = options;
+  const { manifest, styles = ["app/styles.css"] } = options;
   const base = new Hono();
   // Nonce CSP is build-only: Vite's dev server injects an un-nonced
   // /@vite/client that a restrictive script-src would block.
@@ -220,6 +230,7 @@ export function defineApp(options: DefineAppOptions): Hono {
     error: options.error,
     manifest,
     islandUrls: resolveIslandUrls(options.devIslandUrls, manifest),
+    styles: styles.map((src) => styleUrl(src, manifest)),
   });
 }
 

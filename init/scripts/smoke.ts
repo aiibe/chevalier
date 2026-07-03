@@ -188,8 +188,18 @@ try {
       ok("dev server up");
 
       const home = await (await fetch(BASE)).text();
-      if (!home.includes("<h1>Chevalier</h1>")) fail("/ missing SSR heading");
+      if (!home.includes(">Chevalier</h1>")) fail("/ missing SSR heading");
       else ok("/ SSR renders");
+      // Dev: render-blocking ?direct <link> (no FOUC) + a <script> for CSS HMR.
+      if (
+        !home.includes('<link rel="stylesheet" href="/app/styles.css?direct"')
+      ) {
+        fail("/ missing dev stylesheet link (?direct)");
+      } else if (
+        !home.includes('<script type="module" src="/app/styles.css">')
+      ) {
+        fail("/ missing dev stylesheet HMR script");
+      } else ok("/ dev stylesheet wired");
       if (!home.includes("counts: 3")) fail("/ island not SSR'd (counts: 3)");
       else ok("/ island SSR'd");
       if (!home.includes("hydrateIslands")) {
@@ -213,7 +223,7 @@ try {
       const aboutRes = await fetch(`${BASE}/about`);
       const about = await aboutRes.text();
       if (aboutRes.status !== 200) fail("/about not 200");
-      else if (!about.includes("<h1>About</h1>")) {
+      else if (!about.includes(">About</h1>")) {
         fail("/about missing heading");
       } else ok("/about renders");
 
@@ -338,9 +348,23 @@ try {
 
           // Page route: falls through to app.fetch and renders SSR.
           const home = await (await fetch(PROD_BASE)).text();
-          if (!home.includes("<h1>Chevalier</h1>")) {
+          if (!home.includes(">Chevalier</h1>")) {
             fail("prod / missing SSR heading (fall-through broken)");
           } else ok("prod / renders (fall-through)");
+
+          // Build: Tailwind entry is linked as a hashed .css and serves as CSS.
+          const cssHref = home.match(/\/assets\/styles-[^"]+\.css/)?.[0];
+          if (!cssHref) {
+            fail("prod / missing hashed stylesheet <link>");
+          } else {
+            const cssRes = await fetch(`${PROD_BASE}${cssHref}`);
+            await cssRes.body?.cancel();
+            if (cssRes.status !== 200) {
+              fail(`GET ${cssHref} not 200 (${cssRes.status})`);
+            } else if (!cssRes.headers.get("content-type")?.includes("css")) {
+              fail(`GET ${cssHref} wrong Content-Type`);
+            } else ok("prod stylesheet served as CSS");
+          }
 
           if (!asset) {
             fail("no hashed chunk found under dist/client/assets");

@@ -4,6 +4,7 @@ import {
   resolveClientEntry,
   resolveIslandUrl,
   resolveIslandUrls,
+  styleUrl,
   type ViteManifest,
 } from "./manifest.ts";
 
@@ -15,6 +16,7 @@ const manifest: ViteManifest = {
   },
   "app/islands/counter.tsx": { file: "assets/counter-A1b2C3d4.js" },
   "app/islands/clock.jsx": { file: "assets/clock-E5f6G7h8.js" },
+  "app/styles.css": { file: "assets/styles-Zx9Yw8V7.css", name: "styles" },
 };
 
 Deno.test("no manifest (dev) → client dev URL", () => {
@@ -68,4 +70,30 @@ Deno.test("resolveIslandUrls — no manifest (dev) returns dev URLs unchanged", 
 Deno.test("resolveIslandUrls — unresolved id falls back to its dev URL", () => {
   const dev = { "islands/orphan": "/app/islands/orphan.tsx" };
   assertEquals(resolveIslandUrls(dev, manifest), dev);
+});
+
+Deno.test("styleUrl — no manifest (dev) → source URL, script tag", () => {
+  assertEquals(styleUrl("app/styles.css", undefined), {
+    href: "/app/styles.css",
+    dev: true,
+  });
+});
+
+Deno.test("styleUrl — leading ./ stripped", () => {
+  assertEquals(styleUrl("./app/styles.css", undefined).href, "/app/styles.css");
+});
+
+Deno.test("styleUrl — manifest → hashed asset, link tag", () => {
+  assertEquals(styleUrl("app/styles.css", manifest), {
+    href: "/assets/styles-Zx9Yw8V7.css",
+    dev: false,
+  });
+});
+
+Deno.test("styleUrl — build missing the chunk degrades to dev URL", () => {
+  const { "app/styles.css": _drop, ...noCss } = manifest;
+  assertEquals(styleUrl("app/styles.css", noCss), {
+    href: "/app/styles.css",
+    dev: true,
+  });
 });

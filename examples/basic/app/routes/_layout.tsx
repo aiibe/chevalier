@@ -2,10 +2,10 @@
 // (affects the document shell), like routes and islands.
 // `boot` is "" for a page with no islands, shipping zero client JS.
 
-import type { LayoutProps } from "chevalier";
+import { type LayoutProps, Stylesheets } from "chevalier";
 
 export default function Layout(
-  { childrenHtml, boot = "", nonce }: LayoutProps,
+  { childrenHtml, boot = "", nonce, styles }: LayoutProps,
 ) {
   return (
     <html lang="en">
@@ -13,11 +13,13 @@ export default function Layout(
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <link rel="icon" href="/favicon.png" type="image/png" />
+        <Stylesheets styles={styles} />
         <title>Chevalier — basic</title>
       </head>
-      <body>
-        <nav>
-          <a href="/">home</a> · <a href="/about">about</a>
+      <body class="mx-auto max-w-2xl p-8 font-sans text-gray-800">
+        <nav class="mb-8 flex gap-3 text-sm text-gray-500">
+          <a class="hover:text-gray-900" href="/">home</a>
+          <a class="hover:text-gray-900" href="/about">about</a>
         </nav>
         <main
           id="chevalier-root"

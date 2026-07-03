@@ -8,10 +8,15 @@ export {
   resolveClientEntry,
   resolveIslandUrl,
   resolveIslandUrls,
+  styleUrl,
 } from "./manifest.ts";
-export type { ViteManifest, ViteManifestChunk } from "./manifest.ts";
+export type {
+  StyleEntry,
+  ViteManifest,
+  ViteManifestChunk,
+} from "./manifest.ts";
 
-export { Layout } from "./layout.tsx";
+export { Layout, Stylesheets } from "./layout.tsx";
 export type { LayoutProps } from "./layout.tsx";
 
 export { hydrateIslands } from "./client.ts";

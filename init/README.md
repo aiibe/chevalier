@@ -25,6 +25,7 @@ A minimal working app to start from:
 - A form page that reads its input server-side
 - A layout, plus 404 and error pages
 - An `/api` handler
+- Tailwind v4, wired for dev and production
 - A hot-reloading dev server
 
 Edit the island and it hot-updates with its state preserved. Edit a page or the
