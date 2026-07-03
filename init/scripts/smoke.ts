@@ -392,16 +392,16 @@ try {
 
           // public/ file: served from root with a stable name, so it must
           // revalidate (no-cache), not pin immutable like hashed /assets/.
-          const fav = await fetch(`${PROD_BASE}/favicon.svg`);
+          const fav = await fetch(`${PROD_BASE}/favicon.png`);
           await fav.body?.cancel();
           const favCc = fav.headers.get("cache-control");
           if (fav.status !== 200) {
-            fail(`GET /favicon.svg not 200 (${fav.status})`);
+            fail(`GET /favicon.png not 200 (${fav.status})`);
           } else if (favCc !== "public, no-cache") {
-            fail(`GET /favicon.svg wrong Cache-Control (${favCc})`);
-          } else if (!fav.headers.get("content-type")?.includes("svg")) {
-            fail(`GET /favicon.svg wrong Content-Type`);
-          } else ok("GET /favicon.svg → 200 revalidated");
+            fail(`GET /favicon.png wrong Cache-Control (${favCc})`);
+          } else if (!fav.headers.get("content-type")?.includes("png")) {
+            fail(`GET /favicon.png wrong Content-Type`);
+          } else ok("GET /favicon.png → 200 revalidated");
         }
       } finally {
         try {

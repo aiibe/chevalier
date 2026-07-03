@@ -14,11 +14,13 @@ export function chevalierConfig(
     resolve: {
       // One Preact instance across SSR + islands is required for hydration.
       dedupe: ["preact", "preact/hooks", "preact-render-to-string", "hono"],
-      // Map baked npm:preact@x[/sub] specifiers back to the import-map name so
-      // the jsx-runtime subpath resolves instead of collapsing to bare preact.
+      // JSR bakes core's import map into source (npm:pkg@x, npm:/pkg@x/sub); map
+      // back to bare names or the SSR bundle can't resolve them.
       alias: [
         { find: /^npm:preact@[^/]*\/(.*)$/, replacement: "preact/$1" },
         { find: /^npm:preact@[^/]*$/, replacement: "preact" },
+        { find: /^npm:\/hono@[^/]*\/(.*)$/, replacement: "hono/$1" },
+        { find: /^npm:hono@[^/]*$/, replacement: "hono" },
       ],
     },
     // Externalized, preact's jsx-runtime subpath collapses to bare preact, which
