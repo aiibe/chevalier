@@ -1,7 +1,8 @@
 // Public API for Chevalier — a Deno meta-framework structured like HonoX, with
 // a Preact view layer and full-reload-on-route-change in dev.
 
-export { buildBoot, defineApp } from "./server.ts";
+export { buildBoot } from "./boot.ts";
+export { defineApp } from "./server.ts";
 export type {
   DefineAppOptions,
   PageAction,

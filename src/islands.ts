@@ -11,8 +11,13 @@ export const ROUTE_EXT_RE = new RegExp(`\\.(${ROUTE_EXT})$`);
 const ISLAND_RE = new RegExp(`(?:^|/)islands/.+\\.(${COMPONENT_EXT})$`);
 export const TEST_SPEC_RE = new RegExp(`\\.(test|spec)\\.(${ROUTE_EXT})$`);
 
+/** Drop a leading `./` or `/` so a path is root-relative. */
+export function stripLead(p: string): string {
+  return p.replace(/^\.?\//, "");
+}
+
 export function normalizePath(p: string): string {
-  return p.replace(/\\/g, "/").replace(/^\.?\//, "");
+  return stripLead(p.replace(/\\/g, "/"));
 }
 
 function basename(p: string): string {

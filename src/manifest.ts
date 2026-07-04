@@ -1,5 +1,7 @@
 // Vite client-manifest → hashed-asset resolution.
 
+import { stripLead } from "./islands.ts";
+
 /** Chunk `name` of chevalier's client entry; src/vite.ts keys the client input by it. */
 export const CLIENT_NAME = "chevalier-client";
 
@@ -9,6 +11,11 @@ export const MANIFEST_PATH = "dist/client/.vite/manifest.json";
 
 /** Dev URL of the chevalier client entry (the virtual module Vite serves). */
 export const CLIENT_DEV_URL = "/@id/chevalier:client";
+
+/** Root-absolute URL for a manifest chunk file (e.g. "assets/x.js" → "/assets/x.js"). */
+function chunkHref(file: string): string {
+  return "/" + file.replace(/^\//, "");
+}
 
 /** Resolved location of a CSS entry for the layout; see styleUrl. */
 export interface StyleEntry {
@@ -23,10 +30,10 @@ export interface StyleEntry {
  * which picks <script> vs <link>. Missing build chunk degrades to the dev URL.
  */
 export function styleUrl(src: string, manifest?: ViteManifest): StyleEntry {
-  const key = src.replace(/^\.?\//, "");
+  const key = stripLead(src);
   const chunk = manifest?.[key];
   if (!chunk) return { href: "/" + key, dev: true };
-  return { href: "/" + chunk.file.replace(/^\//, ""), dev: false };
+  return { href: chunkHref(chunk.file), dev: false };
 }
 
 export interface ViteManifestChunk {
@@ -49,7 +56,7 @@ export type ViteManifest = Record<string, ViteManifestChunk>;
 export function resolveClientEntry(manifest?: ViteManifest): string {
   if (!manifest) return CLIENT_DEV_URL;
   for (const chunk of Object.values(manifest)) {
-    if (chunk.name === CLIENT_NAME) return "/" + chunk.file.replace(/^\//, "");
+    if (chunk.name === CLIENT_NAME) return chunkHref(chunk.file);
   }
   return CLIENT_DEV_URL;
 }
@@ -64,10 +71,10 @@ export function resolveIslandUrl(
   appRoot = "app",
 ): string | null {
   if (!manifest) return null;
-  const root = appRoot.replace(/^\.?\//, "").replace(/\/$/, "");
+  const root = stripLead(appRoot).replace(/\/$/, "");
   for (const ext of ["tsx", "jsx"]) {
     const chunk = manifest[`${root}/${id}.${ext}`];
-    if (chunk) return "/" + chunk.file.replace(/^\//, "");
+    if (chunk) return chunkHref(chunk.file);
   }
   return null;
 }

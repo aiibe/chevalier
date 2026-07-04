@@ -5,7 +5,7 @@
 
 import type { Plugin, ViteDevServer } from "vite";
 import { fileURLToPath } from "node:url";
-import { isIsland, islandId, isMiddleware } from "./islands.ts";
+import { isIsland, islandId, isMiddleware, stripLead } from "./islands.ts";
 import { compileRouteMatcher } from "./router.ts";
 import { CLIENT_NAME } from "./manifest.ts";
 import { devMiddleware } from "./vite/middleware.ts";
@@ -59,7 +59,7 @@ export function chevalier(options: ChevalierOptions = {}): Plugin[] {
   const registryUrl = new URL("./registry.tsx", import.meta.url).href;
   // Per-island virtual alias → its real source file on disk.
   const islandPrefix = "chevalier-island:";
-  const appRootRel = opts.appRoot.replace(/^\.?\//, "");
+  const appRootRel = stripLead(opts.appRoot);
   let serve = true; // gates prefresh to dev
   let isSsrBuild = false; // gates manifest inlining
   let projectRoot = ""; // config.root; locates islands on disk
