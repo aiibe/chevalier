@@ -43,6 +43,9 @@ try {
     path: Deno.env.get("ASTRAL_BIN") ??
       "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
     headless: true,
+    // CI runs in a container where Chrome's sandbox can't init (SIGABRT) and
+    // /dev/shm is tiny; disable both there, keep the real sandbox locally.
+    args: Deno.env.get("CI") ? ["--no-sandbox", "--disable-dev-shm-usage"] : [],
   });
   try {
     const page = await browser.newPage();

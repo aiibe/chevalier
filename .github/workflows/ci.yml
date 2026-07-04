@@ -38,6 +38,28 @@ jobs:
       - name: Init scaffold smoke test
         run: deno task --config init/deno.json smoke
 
+  # Guards that the nonce CSP doesn't block island hydration; needs a real
+  # browser (see examples/basic/scripts/hydration-check.ts).
+  hydration:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - uses: browser-actions/setup-chrome@v1
+        id: chrome
+        with:
+          install-dependencies: true
+
+      - name: Hydration smoke test
+        working-directory: examples/basic
+        env:
+          ASTRAL_BIN: ${{ steps.chrome.outputs.chrome-path }}
+        run: deno task check:hydration
+
   # Smoke-tests a scaffold against the *published* @chevalier/core. Skips PRs: a
   # PR may bump the version pin before that version is on JSR.
   smoke-published:

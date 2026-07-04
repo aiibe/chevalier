@@ -26,11 +26,6 @@
   (local-src imports → `jsr:@chevalier/core`, drop the clock demo) rather than
   keeping a second copy.
 
-- **Hydration check not in CI.** `examples/basic` has a headless-Chrome
-  hydration smoke test (`deno task check:hydration`) that's macOS-Chrome-path
-  specific and not wired into the `ci.yml` workflow. Add a Chrome setup step and
-  run it (or the equivalent) against the built example on CI.
-
 - **No Deno Deploy build preset.** Chevalier requires a manual `deno task build`
   before deploy since Deploy doesn't run Vite. Automating the build-then-deploy
   step would close the gap; today the template README's Deploy section documents
