@@ -2,13 +2,20 @@
 // page wrapped in the layout; named `app`/handlers → Hono sub-app), and
 // serves rendered HTML. Mirrors HonoX's createApp signature/shape.
 
-import { type Context, Hono } from "hono";
+import { type Context, Hono, type MiddlewareHandler } from "hono";
 import { NONCE, secureHeaders } from "hono/secure-headers";
 import { routePath } from "hono/route";
 import type { ComponentType, VNode } from "preact";
 import { h } from "preact";
 import { renderToString } from "preact-render-to-string";
-import { createRoutes, type Route, type RouteModule } from "./router.ts";
+import {
+  createMiddleware,
+  createRoutes,
+  type Middleware,
+  type MiddlewareModule,
+  type Route,
+  type RouteModule,
+} from "./router.ts";
 import { Layout as DefaultLayout, type LayoutProps } from "./layout.tsx";
 import { collectIslands } from "./registry.tsx";
 import {
@@ -54,6 +61,12 @@ export interface CreateAppOptions {
    * by an `import.meta.glob` over `app/routes` (all `.tsx`/`.jsx`/`.ts`).
    */
   routes: Record<string, Loader<RouteModule>>;
+  /**
+   * `_middleware.ts` modules, app-root-relative path → loader (same glob as
+   * routes). Each guards its directory + everything under it, composed
+   * outer-to-inner, running before page/handler dispatch.
+   */
+  middleware?: Record<string, Loader<MiddlewareModule>>;
   /** Optional layout override (default export of app/routes/_layout.tsx). */
   layout?: ComponentType<LayoutProps>;
   /** id → client URL for every island (dev URL, or hashed chunk for a build). */
@@ -90,6 +103,12 @@ export type PageLoader = (
  */
 export type PageAction = (c: Context) => Response | Promise<Response>;
 
+/**
+ * The default export of a `_middleware.ts`: a Hono middleware. Call `next()` to
+ * continue, or return a Response (e.g. `c.redirect("/login")`) to short-circuit.
+ */
+export type PageMiddleware = MiddlewareHandler;
+
 function isHandlerModule(m: RouteModule): m is RouteModule & { app: Hono } {
   return !!m.app && typeof (m.app as Hono).fetch === "function";
 }
@@ -111,6 +130,17 @@ export function createApp(options: CreateAppOptions): Hono {
   const islandUrls = options.islandUrls ?? {};
   const styles = options.styles ?? [];
   const routes: Route[] = createRoutes(options.routes);
+  const middleware: Middleware[] = createMiddleware(options.middleware ?? {});
+
+  // Mount before routes: Hono runs use() in registration order, and
+  // createMiddleware sorts shallowest-first, so guards compose outer-to-inner.
+  // Hono's `/admin/*` matches `/admin` itself too, so one wildcard covers the
+  // dir index and its subtree.
+  for (const { prefix, load } of middleware) {
+    const handler: MiddlewareHandler = async (c, next) =>
+      ((await load()).default as PageMiddleware)(c, next);
+    app.use(prefix === "/" ? "*" : `${prefix}/*`, handler);
+  }
 
   // Two-pass: collect islands + HTML, then render the shell with the boot script.
   const renderDoc = (
@@ -225,6 +255,8 @@ export function createApp(options: CreateAppOptions): Hono {
 export interface DefineAppOptions {
   /** Route modules from the app's `import.meta.glob` over `app/routes`. */
   routes: Record<string, Loader<RouteModule>>;
+  /** `_middleware.ts` modules from a second glob over `app/routes`. */
+  middleware?: Record<string, Loader<MiddlewareModule>>;
   /** Island id → dev URL, from `virtual:chevalier-islands`. */
   devIslandUrls: Record<string, string>;
   /** Build manifest from `virtual:chevalier-manifest`; undefined in dev. */
@@ -259,6 +291,7 @@ export function defineApp(options: DefineAppOptions): Hono {
   return createApp({
     app: base,
     routes: options.routes,
+    middleware: options.middleware,
     layout: options.layout,
     notFound: options.notFound,
     error: options.error,

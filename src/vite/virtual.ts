@@ -27,6 +27,11 @@ export function generateApp(
   const glob = `import.meta.glob([${
     JSON.stringify(`${base}/**/*.{tsx,jsx,ts}`)
   }, ${JSON.stringify(`!${base}/**/_*`)}])`;
+  // A separate glob for the per-directory _middleware.ts guards, which the
+  // routes glob excludes; createMiddleware filters and orders them.
+  const mwGlob = `import.meta.glob(${
+    JSON.stringify(`${base}/**/_middleware.{ts,tsx,js,jsx}`)
+  })`;
 
   const lines = [
     `import { defineApp } from "chevalier";`,
@@ -41,7 +46,9 @@ export function generateApp(
     fields.push(key);
   }
   lines.push(
-    `export default defineApp({ routes: ${glob}, ${fields.join(", ")} });`,
+    `export default defineApp({ routes: ${glob}, middleware: ${mwGlob}, ${
+      fields.join(", ")
+    } });`,
   );
   return lines.join("\n");
 }

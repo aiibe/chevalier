@@ -97,6 +97,23 @@ Deno.test("hot-reload — layout edit broadcasts to all clients", () => {
   assertEquals(onAbout.sent, [], "layout uses broadcast, not per-client send");
 });
 
+Deno.test("hot-reload — middleware edit broadcasts to all clients", () => {
+  const { p, server, broadcast, mkClient, report } = fakeServer();
+  const onAbout = mkClient();
+  report(onAbout, "/about");
+  const r = p.handleHotUpdate({
+    file: "/proj/app/routes/admin/_middleware.ts",
+    server,
+  });
+  assertEquals(r, []);
+  assertEquals(broadcast, [{ type: "full-reload" }], "middleware broadcasts");
+  assertEquals(
+    onAbout.sent,
+    [],
+    "middleware uses broadcast, not per-client send",
+  );
+});
+
 Deno.test("hot-reload — islands and non-app files don't full-reload", () => {
   const { p, server, broadcast, mkClient, report } = fakeServer();
   const onIndex = mkClient();
@@ -168,6 +185,12 @@ Deno.test("generateApp emits a defineApp app with discovered pages", () => {
   // Glob rooted at appRoot, with the _* exclusion pattern.
   assertEquals(code.includes("/app/routes/**/*.{tsx,jsx,ts}"), true);
   assertEquals(code.includes("!/app/routes/**/_*"), true);
+  // A separate middleware glob, since the routes glob excludes _* files.
+  assertEquals(
+    code.includes("/app/routes/**/_middleware.{ts,tsx,js,jsx}"),
+    true,
+  );
+  assertEquals(code.includes("middleware:"), true);
   // Present pages imported + wired; absent ones omitted.
   assertEquals(
     code.includes(`import layout from "/app/routes/_layout.tsx"`),

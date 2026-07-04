@@ -21,6 +21,7 @@ export default function Layout(
           <a class="hover:text-gray-900" href="/">home</a>
           <a class="hover:text-gray-900" href="/about">about</a>
           <a class="hover:text-gray-900" href="/guestbook">guestbook</a>
+          <a class="hover:text-gray-900" href="/admin">admin</a>
         </nav>
         <main
           id="chevalier-root"

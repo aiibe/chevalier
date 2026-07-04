@@ -1,6 +1,6 @@
 // Map a changed file to a reload strategy, and invalidate stale SSR modules.
 
-import { isIsland, normalizePath } from "../islands.ts";
+import { isIsland, isMiddleware, normalizePath } from "../islands.ts";
 
 /** App-root-relative path for `file`, or null if it's outside the app root. */
 export function appRel(file: string, appRoot: string): string | null {
@@ -13,9 +13,9 @@ export function appRel(file: string, appRoot: string): string | null {
   return null;
 }
 
-// "route" reloads only matching browsers; "layout" broadcasts because a _layout
-// wraps many routes and can't be cheaply mapped back to one URL.
-export type ReloadKind = "route" | "layout" | null;
+// "route" reloads only matching browsers; "broadcast" reloads all because a
+// _layout / _middleware wraps many routes and can't be cheaply mapped to one URL.
+export type ReloadKind = "route" | "broadcast" | null;
 
 export function reloadKind(
   file: string,
@@ -23,7 +23,9 @@ export function reloadKind(
 ): { kind: ReloadKind; rel: string | null } {
   const rel = appRel(file, appRoot);
   if (rel === null || isIsland(rel)) return { kind: null, rel };
-  if (rel.includes("_layout")) return { kind: "layout", rel };
+  if (rel.includes("_layout") || isMiddleware(rel)) {
+    return { kind: "broadcast", rel };
+  }
   if (rel.startsWith("routes/")) return { kind: "route", rel };
   return { kind: null, rel };
 }

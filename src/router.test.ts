@@ -1,5 +1,10 @@
 import { assertEquals } from "@std/assert";
-import { fileToPath, routeMatchesPath } from "./router.ts";
+import {
+  createMiddleware,
+  fileToPath,
+  middlewareDirToPath,
+  routeMatchesPath,
+} from "./router.ts";
 
 Deno.test("fileToPath — index, static, nested, dynamic, catch-all", () => {
   assertEquals(fileToPath("routes/index.tsx"), "/");
@@ -37,4 +42,24 @@ Deno.test("routeMatchesPath — catch-all spans slashes", () => {
     true,
   );
   assertEquals(routeMatchesPath("routes/files/[...rest].tsx", "/other"), false);
+});
+
+Deno.test("middlewareDirToPath — root, nested, dynamic", () => {
+  assertEquals(middlewareDirToPath("routes/_middleware.ts"), "/");
+  assertEquals(middlewareDirToPath("routes/admin/_middleware.ts"), "/admin");
+  assertEquals(
+    middlewareDirToPath("routes/blog/[slug]/_middleware.ts"),
+    "/blog/:slug",
+  );
+});
+
+Deno.test("createMiddleware — discovers _middleware, drops routes, sorts shallow-first", () => {
+  const noop = () => Promise.resolve({ default: () => {} });
+  const mw = createMiddleware({
+    "/app/routes/admin/users/_middleware.ts": noop,
+    "/app/routes/admin/_middleware.ts": noop,
+    "/app/routes/_middleware.ts": noop,
+    "/app/routes/index.tsx": noop, // a page, not middleware
+  });
+  assertEquals(mw.map((m) => m.prefix), ["/", "/admin", "/admin/users"]);
 });

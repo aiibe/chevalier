@@ -2,14 +2,6 @@
 
 ## High
 
-- **No middleware convention (auth bites first).** A route folder can't declare
-  scoped middleware; auth/logging today means a hand-rolled Hono `app.use` in a
-  handler file or in the SSR entry — it works but isn't a paved path, so every
-  app reinvents it. Add a `_middleware.ts` convention (per-directory, composed
-  outer-to-inner like the router mounts) that runs before the page/handler
-  dispatch, so login guards are declarative. The `getSession` helper is in place
-  for such a guard to read.
-
 - **Only one root layout.** `_layout.tsx` is global; there's no per-directory
   layout, so a public site + admin area must branch chrome inside the single
   file. Support nested `_layout.tsx` at any `app/routes/**` level, composed

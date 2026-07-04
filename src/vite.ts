@@ -5,13 +5,18 @@
 
 import type { Plugin, ViteDevServer } from "vite";
 import { fileURLToPath } from "node:url";
-import { isIsland, islandId } from "./islands.ts";
+import { isIsland, islandId, isMiddleware } from "./islands.ts";
 import { compileRouteMatcher } from "./router.ts";
 import { CLIENT_NAME } from "./manifest.ts";
 import { devMiddleware } from "./vite/middleware.ts";
 import { discoverIslands, inputKey } from "./vite/islands-discovery.ts";
 import { scopedPrefresh } from "./vite/prefresh.ts";
-import { appRel, invalidateSsrImporters, reloadKind } from "./vite/reload.ts";
+import {
+  appRel,
+  invalidateSsrImporters,
+  reloadKind,
+  type SsrModuleGraph,
+} from "./vite/reload.ts";
 import {
   generateApp,
   generateIslandUrls,
@@ -195,23 +200,44 @@ export function chevalier(options: ChevalierOptions = {}): Plugin[] {
     },
 
     configureServer(server) {
-      // Watcher add/unlink bypass handleHotUpdate, so handle island
-      // add/remove here: the SSR graph would otherwise keep a stale island set.
-      const onIslandStructureChange = (file: string) => {
+      // Watcher add/unlink bypass handleHotUpdate, so structural changes to the
+      // glob results (baked into virtual modules) are handled here: forget the
+      // file, invalidate the affected virtual module so its load() re-globs, and
+      // full-reload. `extra` runs additional invalidation for the island graph.
+      const onStructureChange = (
+        match: (rel: string) => boolean,
+        virtualId: string,
+        extra?: (ssr: SsrModuleGraph, file: string) => void,
+      ) =>
+      (file: string) => {
         const rel = appRel(file, opts.appRoot);
-        if (rel === null || !isIsland(rel)) return;
+        if (rel === null || !match(rel)) return;
         const ssr = server.environments?.ssr?.moduleGraph;
         if (!ssr) return;
-        // Forget the file, drop the virtual map (regenerates via load) and the
-        // island's importers so they re-transform without the stale import.
         ssr.onFileDelete(file);
-        const virtual = ssr.getModuleById(resolvedVirtualId);
-        if (virtual) ssr.invalidateModule(virtual);
-        invalidateSsrImporters(ssr, file);
+        const mod = ssr.getModuleById(virtualId);
+        if (mod) ssr.invalidateModule(mod);
+        extra?.(ssr, file);
         server.ws.send({ type: "full-reload" });
       };
-      server.watcher.on("add", onIslandStructureChange);
-      server.watcher.on("unlink", onIslandStructureChange);
+
+      // An island add/remove changes the discovered island set; a _middleware
+      // add/unlink changes the middleware glob. Island edits also re-transform
+      // importers so a stale nested-island import doesn't linger.
+      for (const on of ["add", "unlink"] as const) {
+        server.watcher.on(
+          on,
+          onStructureChange(
+            isIsland,
+            resolvedVirtualId,
+            invalidateSsrImporters,
+          ),
+        );
+        server.watcher.on(
+          on,
+          onStructureChange(isMiddleware, resolvedAppId),
+        );
+      }
 
       server.ws.on(
         "chevalier:route",
@@ -228,7 +254,7 @@ export function chevalier(options: ChevalierOptions = {}): Plugin[] {
 
     handleHotUpdate({ file, server }: { file: string; server: ViteDevServer }) {
       const { kind, rel } = reloadKind(file, opts.appRoot);
-      if (kind === "layout") {
+      if (kind === "broadcast") {
         server.ws.send({ type: "full-reload" });
         return [];
       }

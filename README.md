@@ -194,6 +194,35 @@ The cookie is `HttpOnly` by default and `Secure` except on `localhost` /
 `{ cookie }` to override its attributes — e.g. `{ cookie: { secure: true } }`
 behind a TLS-terminating proxy. Set `SESSION_SECRET` to a long random string.
 
+### Middleware
+
+Drop a `_middleware.ts` in any `app/routes/**` directory and its default export
+— a Hono middleware — runs before every page, handler, loader, and action at or
+under that directory. Call `next()` to continue; return a `Response` to
+short-circuit. This is the declarative place for an auth guard.
+
+```ts
+// app/routes/admin/_middleware.ts  →  guards /admin and everything under it
+import type { PageMiddleware } from "@chevalier/core";
+import { getSession } from "@chevalier/core";
+
+const guard: PageMiddleware = async (c, next) => {
+  const session = await getSession<{ userId: number }>(
+    c,
+    Deno.env.get("SESSION_SECRET")!,
+  );
+  if (!session.data.userId) return c.redirect("/login");
+  await next();
+};
+
+export default guard;
+```
+
+A `_middleware.ts` guards its own directory index (`/admin`) and its subtree,
+but not siblings. Nest directories to layer guards: they compose outer-to-inner,
+so `routes/_middleware.ts` wraps `routes/admin/_middleware.ts`. One guard per
+directory — compose multiple concerns inside the handler.
+
 ## Handlers
 
 Any route file can `export const app`, a Hono sub-app that serves any HTTP
@@ -248,6 +277,8 @@ Drop these files in `app/routes/` and Chevalier picks them up — no wiring:
   prop.
 
 `_404` and `_error` are opt-in; omit either to fall back to Hono's defaults.
+`_layout.tsx` is global; `_middleware.ts` (see [Middleware](#middleware)) is
+per-directory.
 
 ## Alternatives
 

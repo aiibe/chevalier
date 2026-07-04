@@ -440,3 +440,105 @@ Deno.test("_error page renders in the layout when a route throws", async () => {
   assertEquals(html.startsWith("<!DOCTYPE html>"), true);
   assertEquals(html.includes("boom"), true);
 });
+
+Deno.test("_middleware runs before the page loader/render", async () => {
+  const order: string[] = [];
+  const app = createApp({
+    routes: {
+      "/app/routes/index.tsx": () =>
+        Promise.resolve({
+          loader: () => {
+            order.push("loader");
+            return {};
+          },
+          default: () => h("div", null, "home"),
+        }),
+    },
+    middleware: {
+      "/app/routes/_middleware.ts": () =>
+        Promise.resolve({
+          default: async (_c: Context, next: () => Promise<void>) => {
+            order.push("mw");
+            await next();
+          },
+        }),
+    },
+  });
+
+  const res = await app.request("/");
+  assertEquals(res.status, 200);
+  assertEquals(order, ["mw", "loader"]);
+});
+
+Deno.test("_middleware composes outer-to-inner across nested dirs", async () => {
+  const order: string[] = [];
+  const mk = (tag: string) => () =>
+    Promise.resolve({
+      default: async (_c: Context, next: () => Promise<void>) => {
+        order.push(tag);
+        await next();
+      },
+    });
+  const app = createApp({
+    routes: {
+      "/app/routes/admin/index.tsx": () =>
+        Promise.resolve({ default: () => h("div", null, "admin") }),
+    },
+    middleware: {
+      // Deliberately inner-first in the map: createMiddleware must reorder.
+      "/app/routes/admin/_middleware.ts": mk("inner"),
+      "/app/routes/_middleware.ts": mk("outer"),
+    },
+  });
+
+  const res = await app.request("/admin");
+  assertEquals(res.status, 200);
+  assertEquals(order, ["outer", "inner"]);
+});
+
+Deno.test("_middleware guards its dir index and children, not siblings", async () => {
+  const hits: string[] = [];
+  const app = createApp({
+    routes: {
+      "/app/routes/admin/index.tsx": () =>
+        Promise.resolve({ default: () => h("div", null, "admin") }),
+      "/app/routes/admin/users.tsx": () =>
+        Promise.resolve({ default: () => h("div", null, "users") }),
+      "/app/routes/about.tsx": () =>
+        Promise.resolve({ default: () => h("div", null, "about") }),
+    },
+    middleware: {
+      "/app/routes/admin/_middleware.ts": () =>
+        Promise.resolve({
+          default: async (c: Context, next: () => Promise<void>) => {
+            hits.push(new URL(c.req.url).pathname);
+            await next();
+          },
+        }),
+    },
+  });
+
+  await app.request("/admin"); // index of guarded dir
+  await app.request("/admin/users"); // child
+  await app.request("/about"); // sibling — not guarded
+  assertEquals(hits, ["/admin", "/admin/users"]);
+});
+
+Deno.test("_middleware guard short-circuits with a redirect", async () => {
+  const app = createApp({
+    routes: {
+      "/app/routes/admin/index.tsx": () =>
+        Promise.resolve({ default: () => h("div", null, "admin") }),
+    },
+    middleware: {
+      "/app/routes/admin/_middleware.ts": () =>
+        Promise.resolve({
+          default: (c: Context) => c.redirect("/login", 302),
+        }),
+    },
+  });
+
+  const res = await app.request("/admin", { redirect: "manual" });
+  assertEquals(res.status, 302);
+  assertEquals(res.headers.get("location"), "/login");
+});

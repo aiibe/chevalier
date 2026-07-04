@@ -30,6 +30,11 @@ export function isIsland(path: string): boolean {
   return ISLAND_RE.test(p);
 }
 
+/** True iff `path` (app-root-relative) is a per-directory `_middleware` file. */
+export function isMiddleware(path: string): boolean {
+  return /(^|\/)_middleware\.[^/]+$/.test(normalizePath(path));
+}
+
 /** Excluded files — never islands even under islands/. */
 export function isExcluded(path: string): boolean {
   const p = normalizePath(path);

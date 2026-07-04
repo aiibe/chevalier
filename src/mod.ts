@@ -2,7 +2,12 @@
 // a Preact view layer and full-reload-on-route-change in dev.
 
 export { buildBoot, defineApp } from "./server.ts";
-export type { DefineAppOptions, PageAction, PageLoader } from "./server.ts";
+export type {
+  DefineAppOptions,
+  PageAction,
+  PageLoader,
+  PageMiddleware,
+} from "./server.ts";
 
 export {
   resolveClientEntry,
@@ -24,8 +29,13 @@ export type { IslandProps, IslandRegistry } from "./client.ts";
 
 export { collectIslands, island } from "./registry.tsx";
 
-export { createRoutes, fileToPath } from "./router.ts";
-export type { Route, RouteModule } from "./router.ts";
+export { createMiddleware, createRoutes, fileToPath } from "./router.ts";
+export type {
+  Middleware,
+  MiddlewareModule,
+  Route,
+  RouteModule,
+} from "./router.ts";
 
 export { isIsland, islandId, normalizePath } from "./islands.ts";
 
