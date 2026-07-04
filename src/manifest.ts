@@ -1,6 +1,6 @@
 // Vite client-manifest → hashed-asset resolution.
 
-/** Chunk `name` of chevalier's client entry (kept in sync with src/vite.ts). */
+/** Chunk `name` of chevalier's client entry; src/vite.ts keys the client input by it. */
 export const CLIENT_NAME = "chevalier-client";
 
 // Client manifest, project-root-relative. Convention, not derived: the app's

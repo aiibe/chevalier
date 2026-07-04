@@ -136,23 +136,26 @@ export function createApp(options: CreateAppOptions): Hono {
       | string
       | undefined;
 
-  const dispatch = (route: Route) => async (c: Context) => {
-    const mod = await route.load();
+  // Delegate to a route file's Hono sub-app. Strip the mount prefix so handler
+  // routes stay file-relative (`.post("/")`, not `.post("/api")`).
+  const serveHandler = (
+    route: Route,
+    app: Hono,
+    c: Context,
+  ): Response | Promise<Response> => {
+    const url = new URL(c.req.raw.url);
+    url.pathname = url.pathname.slice(route.path.length) || "/";
+    return app.fetch(new Request(url, c.req.raw), c.env as never);
+  };
 
-    if (isHandlerModule(mod)) {
-      // Strip the mount prefix so handler routes stay file-relative
-      // (`.post("/")`, not `.post("/api")`).
-      const url = new URL(c.req.raw.url);
-      url.pathname = url.pathname.slice(route.path.length) || "/";
-      return mod.app.fetch(new Request(url, c.req.raw), c.env as never);
-    }
-
-    // Compare the *matched pattern*, so `/:id` pages match `/42`; the wildcard
-    // mount registers as `/:id/*`, which won't equal route.path.
-    const samePath = routePath(c) === route.path;
-
+  // Serve a page module at its own path: run its action on non-GET, else its
+  // loader + render. Sub-paths under a page 404 (handled by the caller).
+  const servePage = async (
+    mod: RouteModule,
+    c: Context,
+  ): Promise<Response> => {
     // Same-path non-GET → the page's action (form POST); else 404.
-    if (samePath && c.req.method !== "GET") {
+    if (c.req.method !== "GET") {
       const action = mod.action as PageAction | undefined;
       if (!action) return c.notFound();
       // Actions mutate: reject cross-origin form posts (CSRF).
@@ -160,17 +163,10 @@ export function createApp(options: CreateAppOptions): Hono {
       return action(c);
     }
 
-    // GET-only from here; a sub-path under a page 404s.
-    if (!samePath) {
-      return c.notFound();
-    }
-
     const Page = mod.default as
       | ComponentType<Record<string, unknown>>
       | undefined;
-    if (!Page) {
-      return c.notFound();
-    }
+    if (!Page) return c.notFound();
 
     // A Response short-circuits; any other value merges into props. See PageLoader.
     let data: Record<string, unknown> = {};
@@ -187,6 +183,15 @@ export function createApp(options: CreateAppOptions): Hono {
       readNonce(c),
     );
     return c.html(html);
+  };
+
+  const dispatch = (route: Route) => async (c: Context) => {
+    const mod = await route.load();
+    if (isHandlerModule(mod)) return serveHandler(route, mod.app, c);
+    // Compare the *matched pattern*, so `/:id` pages match `/42`; the wildcard
+    // mount registers as `/:id/*`, which won't equal route.path.
+    if (routePath(c) !== route.path) return c.notFound();
+    return servePage(mod, c);
   };
 
   // Exact paths first, then `/*` wildcards, so a handler module's sub-paths

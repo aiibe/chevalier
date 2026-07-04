@@ -2,7 +2,7 @@
 // HonoX-style. Non-island route files contribute pages/handlers; islands and
 // convention files (`_*`) are excluded from the route table.
 
-import { normalizePath } from "./islands.ts";
+import { normalizePath, ROUTE_EXT_RE, TEST_SPEC_RE } from "./islands.ts";
 
 export interface RouteModule {
   // A default-exported Preact component → rendered page.
@@ -45,7 +45,7 @@ function toRoutesRelative(p: string): string {
 export function fileToPath(file: string): string {
   let p = normalizePath(file)
     .replace(/^routes\//, "")
-    .replace(/\.(tsx|jsx|ts|js)$/, "");
+    .replace(ROUTE_EXT_RE, "");
 
   // [slug] → :slug, [...rest] → :rest{.+}. Hono has no `*`-suffix param,
   // so catch-all uses the `{.+}` regex form to stay a named param.
@@ -98,7 +98,7 @@ export function createRoutes(
     const name = file.slice(file.lastIndexOf("/") + 1);
     if (isConventionFile(name)) continue;
     // Drop test/spec/type files; component pages and .ts handlers both stay.
-    if (/(\.(test|spec)\.(tsx|jsx|ts|js)|\.d\.ts)$/.test(name)) continue;
+    if (TEST_SPEC_RE.test(name) || name.endsWith(".d.ts")) continue;
     routes.push({ path: fileToPath(file), file, load });
   }
   // Static segments before dynamic ones so `/about` beats `/:slug`.

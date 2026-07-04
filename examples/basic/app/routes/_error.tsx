@@ -1,5 +1,5 @@
 // Convention page: rendered when a route throws (status 500).
-// Wired via defineApp({ error }) in server.ts.
+// Wired via defineApp({ error }) in the generated SSR app.
 
 export default function ErrorPage({ error }: { error: unknown }) {
   const message = error instanceof Error ? error.message : String(error);
