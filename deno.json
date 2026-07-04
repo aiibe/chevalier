@@ -21,6 +21,7 @@
     "exclude": ["src/**/*.test.ts", "src/**/*.test.tsx", "examples/"]
   },
   "tasks": {
+    "test": "deno test -A",
     "dev": "vite",
     "build": "vite build && vite build --ssr",
     "preview": "vite preview",

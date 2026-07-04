@@ -17,7 +17,7 @@ export default function Layout(
         <nav class="mb-8 flex gap-3 text-sm text-gray-500">
           <a class="hover:text-gray-900" href="/">home</a>
           <a class="hover:text-gray-900" href="/about">about</a>
-          <a class="hover:text-gray-900" href="/greet">greet</a>
+          <a class="hover:text-gray-900" href="/guestbook">guestbook</a>
         </nav>
         <main
           id="chevalier-root"

@@ -93,6 +93,96 @@ Deno.test("page route is GET-only — POST falls through to 404", async () => {
   assertEquals((await app.request("/", { method: "POST" })).status, 404);
 });
 
+Deno.test("page action runs on same-path POST and returns its Response", async () => {
+  const app = createApp({
+    routes: {
+      "/app/routes/index.tsx": () =>
+        Promise.resolve({
+          action: (c: Context) => c.redirect("/", 303),
+          default: () => h("div", null, "home"),
+        }),
+    },
+  });
+
+  const res = await app.request("/", { method: "POST", redirect: "manual" });
+  assertEquals(res.status, 303);
+  assertEquals(res.headers.get("location"), "/");
+});
+
+Deno.test("page action rejects a cross-origin form post (CSRF) with 403", async () => {
+  const app = createApp({
+    routes: {
+      "/app/routes/index.tsx": () =>
+        Promise.resolve({
+          action: (c: Context) => c.redirect("/", 303),
+          default: () => h("div", null, "home"),
+        }),
+    },
+  });
+
+  // Sec-Fetch-Site: cross-site → blocked before the action runs.
+  const bySite = await app.request("/", {
+    method: "POST",
+    headers: { "sec-fetch-site": "cross-site" },
+  });
+  assertEquals(bySite.status, 403);
+
+  // No Sec-Fetch-Site, mismatched Origin → also blocked.
+  const byOrigin = await app.request("http://localhost/", {
+    method: "POST",
+    headers: { origin: "http://evil.example" },
+  });
+  assertEquals(byOrigin.status, 403);
+});
+
+Deno.test("page action allows a same-origin form post", async () => {
+  const app = createApp({
+    routes: {
+      "/app/routes/index.tsx": () =>
+        Promise.resolve({
+          action: (c: Context) => c.redirect("/", 303),
+          default: () => h("div", null, "home"),
+        }),
+    },
+  });
+
+  const bySite = await app.request("/", {
+    method: "POST",
+    redirect: "manual",
+    headers: { "sec-fetch-site": "same-origin" },
+  });
+  assertEquals(bySite.status, 303);
+
+  const byOrigin = await app.request("http://localhost/", {
+    method: "POST",
+    redirect: "manual",
+    headers: { origin: "http://localhost" },
+  });
+  assertEquals(byOrigin.status, 303);
+});
+
+Deno.test("POST to a page action sub-path 404s (page owns only its path)", async () => {
+  const app = createApp({
+    routes: {
+      "/app/routes/[id].tsx": () =>
+        Promise.resolve({
+          action: (c: Context) => c.redirect("/", 303),
+          default: () => h("div", null, "page"),
+        }),
+    },
+  });
+
+  // Same-path POST hits the action; a sub-path does not.
+  assertEquals(
+    (await app.request("/42", { method: "POST", redirect: "manual" })).status,
+    303,
+  );
+  assertEquals(
+    (await app.request("/42/extra", { method: "POST" })).status,
+    404,
+  );
+});
+
 Deno.test("createApp injects styles into the default layout <head>", async () => {
   const app = createApp({
     routes: {

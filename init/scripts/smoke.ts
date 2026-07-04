@@ -227,19 +227,28 @@ try {
         fail("/about missing heading");
       } else ok("/about renders");
 
-      const greet = await (await fetch(`${BASE}/greet?name=ada`)).text();
-      if (!greet.includes("Hello, ada!")) {
-        fail("/greet loader did not render the greeting");
-      } else ok("/greet loader renders submitted name");
+      const guestbook = await (await fetch(`${BASE}/guestbook`)).text();
+      if (!guestbook.includes("Islands all the way down.")) {
+        fail("/guestbook loader did not render seeded entry");
+      } else ok("/guestbook loader renders entries");
 
-      // Empty name → loader returns a redirect (Response short-circuit).
-      const greetRedir = await fetch(`${BASE}/greet?name=`, {
+      // POST an entry → action writes then 303-redirects (PRG).
+      const signRes = await fetch(`${BASE}/guestbook`, {
+        method: "POST",
+        headers: { "content-type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({ message: "smoke-test-was-here" }),
         redirect: "manual",
       });
-      await greetRedir.body?.cancel();
-      if (greetRedir.status !== 302) {
-        fail(`/greet empty name not a redirect (${greetRedir.status})`);
-      } else ok("/greet empty name → redirect");
+      await signRes.body?.cancel();
+      if (signRes.status !== 303) {
+        fail(`/guestbook POST not a 303 redirect (${signRes.status})`);
+      } else ok("/guestbook POST → 303 redirect");
+
+      // Re-GET reflects the new entry the action wrote.
+      const after = await (await fetch(`${BASE}/guestbook`)).text();
+      if (!after.includes("smoke-test-was-here")) {
+        fail("/guestbook did not persist posted entry");
+      } else ok("/guestbook shows posted entry after redirect");
 
       const notFound = await fetch(`${BASE}/does-not-exist`);
       await notFound.body?.cancel();

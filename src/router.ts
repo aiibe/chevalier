@@ -12,6 +12,8 @@ export interface RouteModule {
   // Optional data loader run before render; its result merges into page props.
   // Returning a Response short-circuits render (redirect, 404, custom status).
   loader?: unknown;
+  // Write hook run on non-GET at the page's own path; returns a Response. See README.
+  action?: unknown;
 }
 
 export interface Route {

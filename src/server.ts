@@ -4,6 +4,7 @@
 
 import { type Context, Hono } from "hono";
 import { NONCE, secureHeaders } from "hono/secure-headers";
+import { routePath } from "hono/route";
 import type { ComponentType, VNode } from "preact";
 import { h } from "preact";
 import { renderToString } from "preact-render-to-string";
@@ -82,8 +83,25 @@ export type PageLoader = (
   | void
   | Promise<Response | Record<string, unknown> | void>;
 
+/**
+ * A page write hook: runs on a non-GET request at the page's own path (form
+ * POST). Returns a Response (typically `c.redirect(path, 303)` — the browser
+ * re-GETs and the loader re-runs). See README's forms section.
+ */
+export type PageAction = (c: Context) => Response | Promise<Response>;
+
 function isHandlerModule(m: RouteModule): m is RouteModule & { app: Hono } {
   return !!m.app && typeof (m.app as Hono).fetch === "function";
+}
+
+// Trust a same-origin Sec-Fetch-Site; else the Origin must match. Absent both
+// (non-browser client) → allow: a CSRF forgery always rides a real browser.
+function isSameOrigin(c: Context): boolean {
+  const site = c.req.header("sec-fetch-site");
+  if (site) return site === "same-origin" || site === "none";
+  const origin = c.req.header("origin");
+  if (!origin) return true;
+  return origin === new URL(c.req.url).origin;
 }
 
 export function createApp(options: CreateAppOptions): Hono {
@@ -129,10 +147,21 @@ export function createApp(options: CreateAppOptions): Hono {
       return mod.app.fetch(new Request(url, c.req.raw), c.env as never);
     }
 
-    // Pages render GET-only; a non-GET or a sub-path under a page 404s.
-    // Compare the *matched pattern* (routePath), so `/:id` pages match `/42`;
-    // the wildcard mount registers as `/:id/*`, which won't equal route.path.
-    if (c.req.method !== "GET" || c.req.routePath !== route.path) {
+    // Compare the *matched pattern*, so `/:id` pages match `/42`; the wildcard
+    // mount registers as `/:id/*`, which won't equal route.path.
+    const samePath = routePath(c) === route.path;
+
+    // Same-path non-GET → the page's action (form POST); else 404.
+    if (samePath && c.req.method !== "GET") {
+      const action = mod.action as PageAction | undefined;
+      if (!action) return c.notFound();
+      // Actions mutate: reject cross-origin form posts (CSRF).
+      if (!isSameOrigin(c)) return c.text("Forbidden", 403);
+      return action(c);
+    }
+
+    // GET-only from here; a sub-path under a page 404s.
+    if (!samePath) {
       return c.notFound();
     }
 

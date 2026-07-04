@@ -25,7 +25,7 @@ const MANIFEST: ReadonlyArray<readonly [string, string, boolean?]> = [
   ["app/routes/index.tsx", "app/routes/index.tsx"],
   ["app/routes/about.tsx", "app/routes/about.tsx"],
   ["app/routes/hello/[name].tsx", "app/routes/hello/[name].tsx"],
-  ["app/routes/greet.tsx", "app/routes/greet.tsx"],
+  ["app/routes/guestbook.tsx", "app/routes/guestbook.tsx"],
   ["app/routes/api.ts", "app/routes/api.ts"],
   ["app/styles.css", "app/styles.css"],
   ["app/islands/counter.tsx", "app/islands/counter.tsx"],

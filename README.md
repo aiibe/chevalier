@@ -132,6 +132,41 @@ export default function Post({ post }: { post: Post }) {
 }
 ```
 
+### Forms
+
+To handle a form, `export const action` alongside `loader`: `loader` reads on
+GET, `action` writes on POST. A `<form method="post">` posts to its own page, so
+both live in one file. Return a `303` redirect (normally back to the same path)
+— the browser re-GETs and `loader` re-runs with the new state.
+
+```tsx
+// app/routes/guestbook.tsx  →  GET renders, POST signs
+import type { PageAction, PageLoader } from "@chevalier/core";
+
+export const loader: PageLoader = () => ({ entries: readEntries() });
+
+export const action: PageAction = async (c) => {
+  const message = (await c.req.formData()).get("message")?.toString();
+  if (message) addEntry(message);
+  return c.redirect(c.req.path, 303); // PRG: re-GET runs the loader again
+};
+
+export default function Guestbook({ entries }: { entries: string[] }) {
+  return (
+    <form method="post">
+      <input name="message" />
+      <button type="submit">Sign</button>
+    </form>
+  );
+}
+```
+
+Actions are CSRF-protected out of the box: same-origin `<form>` posts just work,
+while a cross-origin post from a browser is rejected with a `403`.
+
+Use `action` for a form that belongs to a page. For a standalone endpoint with
+no page, use a handler (below).
+
 ## Handlers
 
 Any route file can `export const app`, a Hono sub-app that serves any HTTP
