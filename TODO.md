@@ -7,18 +7,13 @@
   handler file or in the SSR entry — it works but isn't a paved path, so every
   app reinvents it. Add a `_middleware.ts` convention (per-directory, composed
   outer-to-inner like the router mounts) that runs before the page/handler
-  dispatch, so login guards are declarative.
+  dispatch, so login guards are declarative. The `getSession` helper is in place
+  for such a guard to read.
 
 - **Only one root layout.** `_layout.tsx` is global; there's no per-directory
   layout, so a public site + admin area must branch chrome inside the single
   file. Support nested `_layout.tsx` at any `app/routes/**` level, composed
   inner-to-outer, wrapping only the routes beneath it.
-
-- **No cookie/session helper.** With no session primitive, the `_middleware.ts`
-  auth guard has nothing to read — every app hand-rolls signed cookies. Add a
-  thin `getSession(c)` over Hono's cookie helpers (signed-cookie read/write), so
-  a middleware can gate on it. Keep it a wrapper only — no session store, no
-  driver abstraction.
 
 ## Nice-to-have
 

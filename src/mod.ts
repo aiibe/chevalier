@@ -29,6 +29,9 @@ export type { Route, RouteModule } from "./router.ts";
 
 export { isIsland, islandId, normalizePath } from "./islands.ts";
 
+export { getSession } from "./session.ts";
+export type { Session, SessionOptions } from "./session.ts";
+
 // The Vite plugin (chevalier/chevalierConfig) ships from the `chevalier/vite`
 // entry, not here: it imports @deno/vite-plugin → a wasm loader, and re-exporting
 // it would drag that into the SSR runtime bundle that imports this barrel.

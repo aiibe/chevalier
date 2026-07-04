@@ -167,6 +167,33 @@ while a cross-origin post from a browser is rejected with a `403`.
 Use `action` for a form that belongs to a page. For a standalone endpoint with
 no page, use a handler (below).
 
+### Sessions
+
+Call `getSession(c, secret)` from a loader or action to read and write a signed
+session cookie. Read `session.data`, `await session.set({ … })` to update it,
+and `session.destroy()` to log out. Empty `data` means no session — a fresh
+visitor, or a cookie that failed its signature — so guard on it.
+
+```tsx
+// app/routes/dashboard.tsx  →  guard on a session in the loader
+import type { PageLoader } from "@chevalier/core";
+import { getSession } from "@chevalier/core";
+
+export const loader: PageLoader = async (c) => {
+  const session = await getSession<{ userId: number }>(
+    c,
+    Deno.env.get("SESSION_SECRET")!,
+  );
+  if (!session.data.userId) return c.redirect("/login");
+  return { userId: session.data.userId };
+};
+```
+
+The cookie is `HttpOnly` by default and `Secure` except on `localhost` /
+`127.0.0.1`, so it survives plain-HTTP dev. Pass `{ name }` to rename it or
+`{ cookie }` to override its attributes — e.g. `{ cookie: { secure: true } }`
+behind a TLS-terminating proxy. Set `SESSION_SECRET` to a long random string.
+
 ## Handlers
 
 Any route file can `export const app`, a Hono sub-app that serves any HTTP
