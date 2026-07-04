@@ -1,6 +1,7 @@
 import { assertEquals } from "@std/assert";
 import { chevalier } from "./vite.ts";
 import { generateApp } from "./vite/virtual.ts";
+import { scopedPrefresh } from "./vite/prefresh.ts";
 
 // deno-lint-ignore no-explicit-any
 type AnyPlugin = any;
@@ -189,4 +190,62 @@ Deno.test("chevalier returns core + scoped prefresh plugins", () => {
   const names = plugins.map((p) => p.name);
   assertEquals(names.includes("chevalier"), true);
   assertEquals(names.includes("chevalier:prefresh"), true);
+});
+
+// Serve-mode transform harness with a fake plugin ctx capturing this.warn().
+function runPrefreshTransform(loadTransform: () => Promise<AnyPlugin>) {
+  const warnings: string[] = [];
+  const p = scopedPrefresh(
+    "app",
+    () => true,
+    loadTransform,
+  ) as AnyPlugin;
+  const ctx = { warn: (m: string) => warnings.push(m) };
+  const call = (id: string) =>
+    p.transform.call(ctx, "code", id, { ssr: false });
+  return { call, warnings };
+}
+
+Deno.test("prefresh — warns once when @prefresh/vite is absent", async () => {
+  const { call, warnings } = runPrefreshTransform(() => Promise.resolve(null));
+  const out1 = await call("/proj/app/islands/counter.tsx");
+  const out2 = await call("/proj/app/islands/widget.tsx");
+
+  assertEquals(out1, undefined, "no transform without prefresh");
+  assertEquals(out2, undefined);
+  assertEquals(warnings.length, 1, "warns once, not per island");
+  assertEquals(warnings[0].includes("@prefresh/vite"), true);
+});
+
+// Non-island and SSR passes bail before the loader runs, so no warning fires.
+Deno.test("prefresh — no warning for non-island or SSR transforms", async () => {
+  const warnings: string[] = [];
+  const p = scopedPrefresh(
+    "app",
+    () => true,
+    () => Promise.resolve(null),
+  ) as AnyPlugin;
+  const ctx = { warn: (m: string) => warnings.push(m) };
+  await p.transform.call(ctx, "code", "/proj/app/routes/about.tsx", {
+    ssr: false,
+  }); // not an island
+  await p.transform.call(ctx, "code", "/proj/app/islands/counter.tsx", {
+    ssr: true,
+  }); // island, but SSR pass
+  assertEquals(warnings.length, 0);
+});
+
+Deno.test("prefresh — runs transform when @prefresh/vite is present", async () => {
+  let called = false;
+  const fakeTransform = () => {
+    called = true;
+    return { code: "transformed" };
+  };
+  const { call, warnings } = runPrefreshTransform(() =>
+    Promise.resolve(fakeTransform as AnyPlugin)
+  );
+  const out = await call("/proj/app/islands/counter.tsx");
+  assertEquals(called, true);
+  assertEquals(out, { code: "transformed" });
+  assertEquals(warnings.length, 0);
 });

@@ -28,7 +28,10 @@ function loadPrefreshTransform(): Promise<TransformFn | null> {
 export function scopedPrefresh(
   appRoot: string,
   isServe: () => boolean,
+  // Test seam: override the @prefresh/vite transform loader.
+  loadTransform: () => Promise<TransformFn | null> = loadPrefreshTransform,
 ): Plugin {
+  let warned = false;
   return {
     name: "chevalier:prefresh",
     async transform(
@@ -42,7 +45,20 @@ export function scopedPrefresh(
       if (!isServe() || txOpts?.ssr) return;
       const rel = appRel(id, appRoot);
       if (rel === null || !isIsland(rel)) return;
-      return (await loadPrefreshTransform())?.call(this, code, id, txOpts);
+      const transform = await loadTransform();
+      if (!transform) {
+        // Absent @prefresh/vite means islands reload-swap and lose state on
+        // edit — warn once so the silent degrade is discoverable.
+        if (!warned) {
+          warned = true;
+          (this as { warn(msg: string): void }).warn(
+            "island Fast Refresh disabled: add @prefresh/vite " +
+              "(+ @prefresh/core, @prefresh/utils) to keep island state across edits.",
+          );
+        }
+        return;
+      }
+      return transform.call(this, code, id, txOpts);
     },
   } as Plugin;
 }
