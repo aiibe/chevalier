@@ -270,15 +270,20 @@ emits no client script at all.
 
 Drop these files in `app/routes/` and Chevalier picks them up — no wiring:
 
-- `_layout.tsx` wraps every page.
+- `_layout.tsx` is the document shell (`<html>`…`<body>`) wrapping a page. Drop
+  one at any level to shell that directory and everything under it; the nearest
+  one to a route applies. Each is a complete document — a nested `_layout.tsx`
+  replaces its parent rather than nesting inside it, so it must render
+  `<Stylesheets>` and the `boot` `<script>` itself. Routes with no `_layout.tsx`
+  ancestor use the built-in shell.
 - `_404.tsx` renders with status 404 for any unmatched route (and for a page's
   own `c.notFound()`).
 - `_error.tsx` renders with status 500 and receives the thrown `error` as a
   prop.
 
-`_404` and `_error` are opt-in; omit either to fall back to Hono's defaults.
-`_layout.tsx` is global; `_middleware.ts` (see [Middleware](#middleware)) is
-per-directory.
+`_404` and `_error` are opt-in and app-root-only; omit either to fall back to
+Hono's defaults. `_layout.tsx` and `_middleware.ts` (see
+[Middleware](#middleware)) are both per-directory.
 
 ## Alternatives
 

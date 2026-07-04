@@ -3,6 +3,7 @@
 // convention files (`_*`) are excluded from the route table.
 
 import {
+  isLayout,
   isMiddleware,
   normalizePath,
   ROUTE_EXT_RE,
@@ -40,6 +41,19 @@ export interface Middleware {
   /** App-root-relative source path, e.g. "routes/admin/_middleware.ts". */
   file: string;
   load: () => Promise<MiddlewareModule>;
+}
+
+/** A `_layout.tsx` module: its default export is the document-shell component. */
+export interface LayoutModule {
+  default?: unknown;
+}
+
+export interface Layout {
+  /** URL prefix the layout shells, e.g. "/", "/admin". Covers it + children. */
+  prefix: string;
+  /** App-root-relative source path, e.g. "routes/admin/_layout.tsx". */
+  file: string;
+  load: () => Promise<LayoutModule>;
 }
 
 /** `_*` files are framework convention, not routes (e.g. _layout, _404). */
@@ -81,14 +95,13 @@ export function fileToPath(file: string): string {
 }
 
 /**
- * URL prefix a `_middleware.ts` guards, from its directory:
+ * URL prefix a convention file (`_middleware`, `_layout`) guards, from its dir:
  * - `routes/_middleware.ts` → `/`
- * - `routes/admin/_middleware.ts` → `/admin`
+ * - `routes/admin/_layout.tsx` → `/admin`
  * - `routes/blog/[slug]/_middleware.ts` → `/blog/:slug`
- * Reuses fileToPath: the file's own segment (`_middleware`) drops as `index` does.
  */
-export function middlewareDirToPath(file: string): string {
-  const dir = normalizePath(file).replace(/\/?_middleware\.[^/]+$/, "");
+export function conventionDirToPath(file: string): string {
+  const dir = normalizePath(file).replace(/\/?_[^/]+\.[^/]+$/, "");
   // `routes` (root dir) → fileToPath yields "/"; nested dirs map like a page path.
   return fileToPath(dir === "routes" ? "routes/index.tsx" : `${dir}/index.tsx`);
 }
@@ -145,11 +158,44 @@ export function createMiddleware(
   for (const [rawFile, load] of Object.entries(modules)) {
     const file = toRoutesRelative(normalizePath(rawFile));
     if (!file.startsWith("routes/") || !isMiddleware(file)) continue;
-    mw.push({ prefix: middlewareDirToPath(file), file, load });
+    mw.push({ prefix: conventionDirToPath(file), file, load });
   }
   // Shallowest first so Hono's registration-order use() composes outer-to-inner.
   mw.sort((a, b) => depth(a.prefix) - depth(b.prefix));
   return mw;
+}
+
+/** `modules` is app-root-relative path → loader, same glob the routes use. */
+export function createLayouts(
+  modules: Record<string, () => Promise<LayoutModule>>,
+): Layout[] {
+  const layouts: Layout[] = [];
+  for (const [rawFile, load] of Object.entries(modules)) {
+    const file = toRoutesRelative(normalizePath(rawFile));
+    if (!file.startsWith("routes/") || !isLayout(file)) continue;
+    layouts.push({ prefix: conventionDirToPath(file), file, load });
+  }
+  // Deepest first so resolveLayout's first prefix match is the nearest ancestor.
+  layouts.sort((a, b) => depth(b.prefix) - depth(a.prefix));
+  return layouts;
+}
+
+/**
+ * The nearest ancestor layout for a route path: deepest prefix that the path
+ * falls under, or undefined (caller uses the built-in default shell). No
+ * composition — a nested _layout replaces its ancestors. See TODO.md.
+ */
+export function resolveLayout(
+  routePath: string,
+  layouts: Layout[],
+): Layout | undefined {
+  return layouts.find((l) => underPrefix(routePath, l.prefix));
+}
+
+/** True iff `path` is `prefix` itself or nested beneath it (segment-aware). */
+function underPrefix(path: string, prefix: string): boolean {
+  if (prefix === "/") return true;
+  return path === prefix || path.startsWith(prefix + "/");
 }
 
 function depth(path: string): number {

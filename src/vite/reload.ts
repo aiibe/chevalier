@@ -1,6 +1,11 @@
 // Map a changed file to a reload strategy, and invalidate stale SSR modules.
 
-import { isIsland, isMiddleware, normalizePath, stripLead } from "../islands.ts";
+import {
+  isIsland,
+  isMiddleware,
+  normalizePath,
+  stripLead,
+} from "../islands.ts";
 
 /** App-root-relative path for `file`, or null if it's outside the app root. */
 export function appRel(file: string, appRoot: string): string | null {

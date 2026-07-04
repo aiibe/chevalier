@@ -9,10 +9,14 @@ import type { ComponentType, VNode } from "preact";
 import { h } from "preact";
 import { renderToString } from "preact-render-to-string";
 import {
+  createLayouts,
   createMiddleware,
   createRoutes,
+  type Layout,
+  type LayoutModule,
   type Middleware,
   type MiddlewareModule,
+  resolveLayout,
   type Route,
   type RouteModule,
 } from "./router.ts";
@@ -44,8 +48,13 @@ export interface CreateAppOptions {
    * outer-to-inner, running before page/handler dispatch.
    */
   middleware?: Record<string, Loader<MiddlewareModule>>;
-  /** Optional layout override (default export of app/routes/_layout.tsx). */
-  layout?: ComponentType<LayoutProps>;
+  /**
+   * `_layout.tsx` modules, app-root-relative path → loader (same glob as
+   * routes). Each is a full document shell for its directory + subtree; the
+   * nearest ancestor wins with no composition (a nested layout replaces its
+   * ancestors). Routes with no `_layout` ancestor use the built-in shell.
+   */
+  layouts?: Record<string, Loader<LayoutModule>>;
   /** id → client URL for every island (dev URL, or hashed chunk for a build). */
   islandUrls?: Record<string, string>;
   /** Optional 404 page (default export of app/routes/_404.tsx). Rendered in the layout with status 404. */
@@ -102,12 +111,29 @@ function isSameOrigin(c: Context): boolean {
 
 export function createApp(options: CreateAppOptions): Hono {
   const app = options.app ?? new Hono();
-  const Layout = options.layout ?? DefaultLayout;
   const clientEntry = resolveClientEntry(options.manifest);
   const islandUrls = options.islandUrls ?? {};
   const styles = options.styles ?? [];
   const routes: Route[] = createRoutes(options.routes);
   const middleware: Middleware[] = createMiddleware(options.middleware ?? {});
+  const layouts: Layout[] = createLayouts(options.layouts ?? {});
+
+  // Resolve a route path to its nearest layout component, loaded + cached.
+  // undefined → the built-in shell. See resolveLayout / TODO.md.
+  const layoutCache = new Map<string, ComponentType<LayoutProps>>();
+  const loadLayout = async (
+    routePath: string,
+  ): Promise<ComponentType<LayoutProps>> => {
+    const match = resolveLayout(routePath, layouts);
+    if (!match) return DefaultLayout;
+    let Layout = layoutCache.get(match.file);
+    if (!Layout) {
+      Layout = ((await match.load()).default ??
+        DefaultLayout) as ComponentType<LayoutProps>;
+      layoutCache.set(match.file, Layout);
+    }
+    return Layout;
+  };
 
   // Mount before routes: Hono runs use() in registration order, and
   // createMiddleware sorts shallowest-first, so guards compose outer-to-inner.
@@ -121,6 +147,7 @@ export function createApp(options: CreateAppOptions): Hono {
 
   // Two-pass: collect islands + HTML, then render the shell with the boot script.
   const renderDoc = (
+    Layout: ComponentType<LayoutProps>,
     Page: ComponentType<Record<string, unknown>>,
     props: Record<string, unknown>,
     nonce?: string,
@@ -130,7 +157,7 @@ export function createApp(options: CreateAppOptions): Hono {
     );
     const boot = buildBoot(ids, islandProps, islandUrls, clientEntry);
     const doc = h(
-      Layout as ComponentType<LayoutProps>,
+      Layout,
       { childrenHtml, boot, nonce, styles } satisfies LayoutProps,
     ) as VNode;
     return "<!DOCTYPE html>" + renderToString(doc);
@@ -158,6 +185,7 @@ export function createApp(options: CreateAppOptions): Hono {
   // Serve a page module at its own path: run its action on non-GET, else its
   // loader + render. Sub-paths under a page 404 (handled by the caller).
   const servePage = async (
+    route: Route,
     mod: RouteModule,
     c: Context,
   ): Promise<Response> => {
@@ -184,7 +212,9 @@ export function createApp(options: CreateAppOptions): Hono {
       if (result) data = result;
     }
 
+    const Layout = await loadLayout(route.path);
     const html = renderDoc(
+      Layout,
       Page,
       { params: c.req.param(), ...data },
       readNonce(c),
@@ -198,7 +228,7 @@ export function createApp(options: CreateAppOptions): Hono {
     // Compare the *matched pattern*, so `/:id` pages match `/42`; the wildcard
     // mount registers as `/:id/*`, which won't equal route.path.
     if (routePath(c) !== route.path) return c.notFound();
-    return servePage(mod, c);
+    return servePage(route, mod, c);
   };
 
   // Exact paths first, then `/*` wildcards, so a handler module's sub-paths
@@ -212,18 +242,26 @@ export function createApp(options: CreateAppOptions): Hono {
   }
 
   // Convention pages. `_404` catches every unmatched route and each page's
-  // `c.notFound()`; `_error` catches thrown errors. Both render in the layout.
+  // `c.notFound()`; `_error` catches thrown errors. Both render in the shell
+  // resolved from the request path (an unmatched /admin/x gets the admin shell).
   const NotFound = options.notFound;
   if (NotFound) {
-    app.notFound((c) => c.html(renderDoc(NotFound, {}, readNonce(c)), 404));
+    app.notFound(async (c) => {
+      const Layout = await loadLayout(new URL(c.req.url).pathname);
+      return c.html(renderDoc(Layout, NotFound, {}, readNonce(c)), 404);
+    });
   }
   const ErrorPage = options.error as
     | ComponentType<Record<string, unknown>>
     | undefined;
   if (ErrorPage) {
-    app.onError((err, c) =>
-      c.html(renderDoc(ErrorPage, { error: err }, readNonce(c)), 500)
-    );
+    app.onError(async (err, c) => {
+      const Layout = await loadLayout(new URL(c.req.url).pathname);
+      return c.html(
+        renderDoc(Layout, ErrorPage, { error: err }, readNonce(c)),
+        500,
+      );
+    });
   }
 
   return app;
@@ -243,7 +281,8 @@ export interface DefineAppOptions {
    * Default `["app/styles.css"]` (the scaffold's Tailwind entry). `[]` to opt out.
    */
   styles?: string[];
-  layout?: ComponentType<LayoutProps>;
+  /** `_layout.tsx` modules from a glob over `app/routes` (nearest ancestor wins). */
+  layouts?: Record<string, Loader<LayoutModule>>;
   notFound?: ComponentType<Record<string, unknown>>;
   error?: ComponentType<{ error: unknown }>;
 }
@@ -269,7 +308,7 @@ export function defineApp(options: DefineAppOptions): Hono {
     app: base,
     routes: options.routes,
     middleware: options.middleware,
-    layout: options.layout,
+    layouts: options.layouts,
     notFound: options.notFound,
     error: options.error,
     manifest,

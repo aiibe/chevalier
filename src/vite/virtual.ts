@@ -4,9 +4,8 @@
 
 import { MANIFEST_PATH } from "../manifest.ts";
 
-/** Convention pages, in defineApp option order: source file → option key. */
+/** Single-instance convention pages (app-root only): source file → option key. */
 const CONVENTION_PAGES: ReadonlyArray<readonly [string, string]> = [
-  ["_layout", "layout"],
   ["_404", "notFound"],
   ["_error", "error"],
 ];
@@ -27,10 +26,13 @@ export function generateApp(
   const glob = `import.meta.glob([${
     JSON.stringify(`${base}/**/*.{tsx,jsx,ts}`)
   }, ${JSON.stringify(`!${base}/**/_*`)}])`;
-  // A separate glob for the per-directory _middleware.ts guards, which the
-  // routes glob excludes; createMiddleware filters and orders them.
+  // Separate globs for the per-directory _middleware / _layout convention files,
+  // which the routes glob excludes; the router filters and orders each.
   const mwGlob = `import.meta.glob(${
     JSON.stringify(`${base}/**/_middleware.{ts,tsx,js,jsx}`)
+  })`;
+  const layoutGlob = `import.meta.glob(${
+    JSON.stringify(`${base}/**/_layout.{tsx,jsx}`)
   })`;
 
   const lines = [
@@ -46,7 +48,7 @@ export function generateApp(
     fields.push(key);
   }
   lines.push(
-    `export default defineApp({ routes: ${glob}, middleware: ${mwGlob}, ${
+    `export default defineApp({ routes: ${glob}, middleware: ${mwGlob}, layouts: ${layoutGlob}, ${
       fields.join(", ")
     } });`,
   );

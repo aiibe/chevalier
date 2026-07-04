@@ -30,15 +30,23 @@ export type { IslandProps, IslandRegistry } from "./client.ts";
 
 export { collectIslands, island } from "./registry.tsx";
 
-export { createMiddleware, createRoutes, fileToPath } from "./router.ts";
+export {
+  createLayouts,
+  createMiddleware,
+  createRoutes,
+  fileToPath,
+  resolveLayout,
+} from "./router.ts";
 export type {
+  Layout as LayoutRoute,
+  LayoutModule,
   Middleware,
   MiddlewareModule,
   Route,
   RouteModule,
 } from "./router.ts";
 
-export { isIsland, islandId, normalizePath } from "./islands.ts";
+export { isIsland, islandId, isLayout, normalizePath } from "./islands.ts";
 
 export { getSession } from "./session.ts";
 export type { Session, SessionOptions } from "./session.ts";

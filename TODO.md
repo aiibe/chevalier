@@ -1,12 +1,5 @@
 # TODO
 
-## High
-
-- **Only one root layout.** `_layout.tsx` is global; there's no per-directory
-  layout, so a public site + admin area must branch chrome inside the single
-  file. Support nested `_layout.tsx` at any `app/routes/**` level, composed
-  inner-to-outer, wrapping only the routes beneath it.
-
 ## Nice-to-have
 
 - **`init/templates/` is a hand-kept parallel of `examples/basic`.** The

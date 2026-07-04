@@ -40,6 +40,11 @@ export function isMiddleware(path: string): boolean {
   return /(^|\/)_middleware\.[^/]+$/.test(normalizePath(path));
 }
 
+/** True iff `path` (app-root-relative) is a per-directory `_layout` file. */
+export function isLayout(path: string): boolean {
+  return /(^|\/)_layout\.[^/]+$/.test(normalizePath(path));
+}
+
 /** Excluded files — never islands even under islands/. */
 export function isExcluded(path: string): boolean {
   const p = normalizePath(path);

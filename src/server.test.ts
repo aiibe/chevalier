@@ -200,6 +200,64 @@ Deno.test("defineApp with styles:[] links no stylesheet", async () => {
   assertEquals(html.includes("stylesheet"), false);
 });
 
+// A minimal document shell that tags its output, so a test can assert which
+// _layout rendered a given route (see nested-layout tests below).
+const shell = (tag: string) => ({ childrenHtml }: { childrenHtml: string }) =>
+  h(
+    "html",
+    null,
+    h("body", {
+      "data-shell": tag,
+      dangerouslySetInnerHTML: { __html: childrenHtml },
+    }),
+  );
+
+Deno.test("nested _layout — nearest ancestor wins, replaces the root shell", async () => {
+  const page = (name: string) => () =>
+    Promise.resolve({ default: () => h("div", null, name) });
+  const app = createApp({
+    routes: {
+      "/app/routes/index.tsx": page("home"),
+      "/app/routes/admin/index.tsx": page("admin-home"),
+      "/app/routes/admin/users.tsx": page("admin-users"),
+    },
+    layouts: {
+      "/app/routes/_layout.tsx": () =>
+        Promise.resolve({ default: shell("root") }),
+      "/app/routes/admin/_layout.tsx": () =>
+        Promise.resolve({ default: shell("admin") }),
+    },
+  });
+
+  const home = await (await app.request("/")).text();
+  assertEquals(home.includes('data-shell="root"'), true);
+
+  const adminHome = await (await app.request("/admin")).text();
+  assertEquals(adminHome.includes('data-shell="admin"'), true);
+  assertEquals(adminHome.includes('data-shell="root"'), false);
+
+  const adminUsers = await (await app.request("/admin/users")).text();
+  assertEquals(adminUsers.includes('data-shell="admin"'), true);
+});
+
+Deno.test("nested _layout — route with no _layout ancestor uses the built-in shell", async () => {
+  const app = createApp({
+    routes: {
+      "/app/routes/about.tsx": () =>
+        Promise.resolve({ default: () => h("div", null, "about") }),
+    },
+    layouts: {
+      "/app/routes/admin/_layout.tsx": () =>
+        Promise.resolve({ default: shell("admin") }),
+    },
+  });
+
+  const html = await (await app.request("/about")).text();
+  // Built-in DefaultLayout wraps it in #chevalier-root; no custom shell tag.
+  assertEquals(html.includes('id="chevalier-root"'), true);
+  assertEquals(html.includes("data-shell="), false);
+});
+
 Deno.test("_404 page renders in the layout for unmatched routes", async () => {
   const app = createApp({
     routes: {

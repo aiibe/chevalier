@@ -185,17 +185,17 @@ Deno.test("generateApp emits a defineApp app with discovered pages", () => {
   // Glob rooted at appRoot, with the _* exclusion pattern.
   assertEquals(code.includes("/app/routes/**/*.{tsx,jsx,ts}"), true);
   assertEquals(code.includes("!/app/routes/**/_*"), true);
-  // A separate middleware glob, since the routes glob excludes _* files.
+  // Separate middleware + layout globs, since the routes glob excludes _* files.
   assertEquals(
     code.includes("/app/routes/**/_middleware.{ts,tsx,js,jsx}"),
     true,
   );
   assertEquals(code.includes("middleware:"), true);
-  // Present pages imported + wired; absent ones omitted.
-  assertEquals(
-    code.includes(`import layout from "/app/routes/_layout.tsx"`),
-    true,
-  );
+  // _layout is per-directory (nearest wins), so it's a glob, not a static import.
+  assertEquals(code.includes("/app/routes/**/_layout.{tsx,jsx}"), true);
+  assertEquals(code.includes("layouts:"), true);
+  assertEquals(code.includes(`import layout from`), false);
+  // Present single-instance pages imported + wired; absent ones omitted.
   assertEquals(
     code.includes(`import notFound from "/app/routes/_404.tsx"`),
     true,

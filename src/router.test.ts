@@ -1,8 +1,10 @@
 import { assertEquals } from "@std/assert";
 import {
+  conventionDirToPath,
+  createLayouts,
   createMiddleware,
   fileToPath,
-  middlewareDirToPath,
+  resolveLayout,
   routeMatchesPath,
 } from "./router.ts";
 
@@ -44,11 +46,12 @@ Deno.test("routeMatchesPath — catch-all spans slashes", () => {
   assertEquals(routeMatchesPath("routes/files/[...rest].tsx", "/other"), false);
 });
 
-Deno.test("middlewareDirToPath — root, nested, dynamic", () => {
-  assertEquals(middlewareDirToPath("routes/_middleware.ts"), "/");
-  assertEquals(middlewareDirToPath("routes/admin/_middleware.ts"), "/admin");
+Deno.test("conventionDirToPath — root, nested, dynamic, layout", () => {
+  assertEquals(conventionDirToPath("routes/_middleware.ts"), "/");
+  assertEquals(conventionDirToPath("routes/admin/_middleware.ts"), "/admin");
+  assertEquals(conventionDirToPath("routes/admin/_layout.tsx"), "/admin");
   assertEquals(
-    middlewareDirToPath("routes/blog/[slug]/_middleware.ts"),
+    conventionDirToPath("routes/blog/[slug]/_middleware.ts"),
     "/blog/:slug",
   );
 });
@@ -62,4 +65,36 @@ Deno.test("createMiddleware — discovers _middleware, drops routes, sorts shall
     "/app/routes/index.tsx": noop, // a page, not middleware
   });
   assertEquals(mw.map((m) => m.prefix), ["/", "/admin", "/admin/users"]);
+});
+
+Deno.test("createLayouts — discovers _layout, drops routes, sorts deep-first", () => {
+  const noop = () => Promise.resolve({ default: () => {} });
+  const layouts = createLayouts({
+    "/app/routes/_layout.tsx": noop,
+    "/app/routes/admin/_layout.tsx": noop,
+    "/app/routes/index.tsx": noop, // a page, not a layout
+    "/app/routes/admin/_middleware.ts": noop, // middleware, not a layout
+  });
+  assertEquals(layouts.map((l) => l.prefix), ["/admin", "/"]);
+});
+
+Deno.test("resolveLayout — nearest ancestor wins, segment-aware", () => {
+  const noop = () => Promise.resolve({ default: () => {} });
+  const layouts = createLayouts({
+    "/app/routes/_layout.tsx": noop,
+    "/app/routes/admin/_layout.tsx": noop,
+  });
+  assertEquals(resolveLayout("/", layouts)?.prefix, "/");
+  assertEquals(resolveLayout("/about", layouts)?.prefix, "/");
+  assertEquals(resolveLayout("/admin", layouts)?.prefix, "/admin");
+  assertEquals(resolveLayout("/admin/users", layouts)?.prefix, "/admin");
+  // "/administrators" must not match the "/admin" prefix (segment boundary).
+  assertEquals(resolveLayout("/administrators", layouts)?.prefix, "/");
+});
+
+Deno.test("resolveLayout — no ancestor → undefined (built-in shell)", () => {
+  const noop = () => Promise.resolve({ default: () => {} });
+  const layouts = createLayouts({ "/app/routes/admin/_layout.tsx": noop });
+  assertEquals(resolveLayout("/about", layouts), undefined);
+  assertEquals(resolveLayout("/admin/x", layouts)?.prefix, "/admin");
 });
