@@ -22,15 +22,9 @@ export type {
   ViteManifestChunk,
 } from "./manifest.ts";
 
-export {
-  App,
-  Head,
-  Layout,
-  PageHead,
-  Stylesheets,
-  StylesProvider,
-} from "./layout.tsx";
+export { App, Layout } from "./layout.tsx";
 export type { LayoutProps } from "./layout.tsx";
+export { Head, PageHead, Stylesheets, StylesProvider } from "./head.tsx";
 
 export { hydrateIslands } from "./client.ts";
 export type { IslandProps, IslandRegistry } from "./client.ts";

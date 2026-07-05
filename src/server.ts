@@ -5,9 +5,7 @@
 import { type Context, Hono, type MiddlewareHandler } from "hono";
 import { NONCE, secureHeaders } from "hono/secure-headers";
 import { routePath } from "hono/route";
-import type { ComponentType, VNode } from "preact";
-import { h } from "preact";
-import { renderToString } from "preact-render-to-string";
+import type { ComponentType } from "preact";
 import {
   createLayouts,
   createMiddleware,
@@ -16,19 +14,11 @@ import {
   type LayoutModule,
   type Middleware,
   type MiddlewareModule,
-  resolveLayouts,
   type Route,
   type RouteModule,
 } from "./router.ts";
-import {
-  App as DefaultApp,
-  Layout as DefaultLayout,
-  type LayoutProps,
-  PageBody,
-  StylesProvider,
-} from "./layout.tsx";
-import { buildBoot } from "./boot.ts";
-import { collectIslands } from "./registry.tsx";
+import { App as DefaultApp, type LayoutProps } from "./layout.tsx";
+import { createRenderer } from "./render.ts";
 import {
   resolveClientEntry,
   resolveIslandUrls,
@@ -131,23 +121,13 @@ export function createApp(options: CreateAppOptions): Hono {
   const layouts: Layout[] = createLayouts(options.layouts ?? {});
   const AppShell = options.appShell ?? DefaultApp;
 
-  // Resolve a route path to its ancestor layout components, outer→inner, each
-  // loaded + cached. They nest inside the app shell; empty → page renders bare.
-  const layoutCache = new Map<string, ComponentType<LayoutProps>>();
-  const loadLayouts = (
-    routePath: string,
-  ): Promise<ComponentType<LayoutProps>[]> =>
-    Promise.all(
-      resolveLayouts(routePath, layouts).map(async (match) => {
-        let Layout = layoutCache.get(match.file);
-        if (!Layout) {
-          Layout = ((await match.load()).default ??
-            DefaultLayout) as ComponentType<LayoutProps>;
-          layoutCache.set(match.file, Layout);
-        }
-        return Layout;
-      }),
-    );
+  const { loadLayouts, renderDoc, readNonce } = createRenderer({
+    layouts,
+    AppShell,
+    islandUrls,
+    clientEntry,
+    styles,
+  });
 
   // Mount before routes: Hono runs use() in registration order, and
   // createMiddleware sorts shallowest-first, so guards compose outer-to-inner.
@@ -158,39 +138,6 @@ export function createApp(options: CreateAppOptions): Hono {
       ((await load()).default as PageMiddleware)(c, next);
     app.use(prefix === "/" ? "*" : `${prefix}/*`, handler);
   }
-
-  // Two-pass: collect islands + HTML, then render the shell with the boot script.
-  // Layouts nest outer→inner inside the app shell, wrapping the page body.
-  const renderDoc = (
-    Layouts: ComponentType<LayoutProps>[],
-    Page: ComponentType<Record<string, unknown>>,
-    props: Record<string, unknown>,
-    nonce?: string,
-  ): string => {
-    const { html, ids, props: islandProps, head: pageHead } = collectIslands(
-      () => renderToString(h(Page, props) as VNode),
-    );
-    const boot = buildBoot(ids, islandProps, islandUrls, clientEntry);
-    // Wrap the page body in each layout inner→outer, then the app shell.
-    const body = Layouts.reduceRight(
-      (children, Layout) =>
-        h(Layout, { children } satisfies LayoutProps) as VNode,
-      h(PageBody, { html, boot, nonce }) as VNode,
-    );
-    const doc = h(StylesProvider, {
-      styles,
-      pageHead,
-      children: h(AppShell, { children: body } satisfies LayoutProps) as VNode,
-    }) as VNode;
-    return "<!DOCTYPE html>" + renderToString(doc);
-  };
-
-  // Reads the key Hono's `secureHeaders` middleware sets, so a `script-src
-  // 'nonce-…'` directive matches the value stamped on the boot <script>.
-  const readNonce = (c: Context): string | undefined =>
-    (c.get as (k: string) => unknown)("secureHeadersNonce") as
-      | string
-      | undefined;
 
   // Delegate to a route file's Hono sub-app. Strip the mount prefix so handler
   // routes stay file-relative (`.post("/")`, not `.post("/api")`).

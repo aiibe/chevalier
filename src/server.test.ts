@@ -2,7 +2,7 @@ import { assertEquals } from "@std/assert";
 import { type Context, Hono } from "hono";
 import { h, type VNode } from "preact";
 import { createApp, defineApp } from "./server.ts";
-import { PageHead } from "./layout.tsx";
+import { PageHead } from "./head.tsx";
 
 // Handlers declare file-relative paths (`/`, not `/api`): server.ts strips the
 // mount prefix before forwarding to the sub-app. See TODO.md.
