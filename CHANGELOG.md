@@ -1,9 +1,9 @@
 # Changelog
 
 All notable changes to Chevalier are recorded here — both the published
-`@chevalier/core` package and the `@chevalier/init` scaffolder. The project aims
-to follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html) once it
-reaches `0.1.0` (see [Stability](#stability)).
+`@chevalier/core` package and the `@chevalier/init` scaffolder. As of `0.1.0`
+the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
+within the pre-1.0 rules in [Stability](#stability).
 
 Entries are versioned against `@chevalier/core`. The scaffolder embeds a working
 app that uses `@chevalier/core` and releases on its own `init-vX.Y.Z` tag track;
@@ -15,9 +15,9 @@ _Scaffold:_.
 Chevalier is pre-1.0; the API can change between releases. Pin an exact version
 and read the entry before upgrading.
 
-- **`0.0.x` (now).** Conventions and public API still moving; any bump may
+- **`0.0.x` (past).** Conventions and public API still moving; any bump could
   break.
-- **`0.1.x` (next).** Conventions stabilize; breaks ship only in a new `0.y`
+- **`0.1.x` (now).** Conventions stabilized; breaks ship only in a new `0.y`
   with a migration note, patches stay compatible.
 - **`1.0` (later).** Full [SemVer](https://semver.org), once the surface has
   held steady across real apps.
@@ -27,6 +27,12 @@ conventions (routes, `_app`/`_layout`/`_404`/`_error`, `_middleware`), and the
 loader/action/session contracts.
 
 ## Unreleased
+
+## 0.1.0
+
+The API surface stabilizes. From here, breaking changes ship only in a new `0.y`
+release with a migration note; patches stay compatible (see
+[Stability](#stability)).
 
 Your page reads its `loader`'s return type without a manual cast — the data is
 typed straight through. Test routes, loaders, actions, and middleware without
