@@ -4,7 +4,7 @@ import {
   createLayouts,
   createMiddleware,
   fileToPath,
-  resolveLayout,
+  resolveLayouts,
   routeMatchesPath,
 } from "./router.ts";
 
@@ -67,7 +67,7 @@ Deno.test("createMiddleware — discovers _middleware, drops routes, sorts shall
   assertEquals(mw.map((m) => m.prefix), ["/", "/admin", "/admin/users"]);
 });
 
-Deno.test("createLayouts — discovers _layout, drops routes, sorts deep-first", () => {
+Deno.test("createLayouts — discovers _layout, drops routes, sorts shallow-first", () => {
   const noop = () => Promise.resolve({ default: () => {} });
   const layouts = createLayouts({
     "/app/routes/_layout.tsx": noop,
@@ -75,26 +75,41 @@ Deno.test("createLayouts — discovers _layout, drops routes, sorts deep-first",
     "/app/routes/index.tsx": noop, // a page, not a layout
     "/app/routes/admin/_middleware.ts": noop, // middleware, not a layout
   });
-  assertEquals(layouts.map((l) => l.prefix), ["/admin", "/"]);
+  // Shallowest first so resolveLayouts returns ancestors outer→inner.
+  assertEquals(layouts.map((l) => l.prefix), ["/", "/admin"]);
 });
 
-Deno.test("resolveLayout — nearest ancestor wins, segment-aware", () => {
+Deno.test("resolveLayouts — all ancestors, outer→inner, segment-aware", () => {
   const noop = () => Promise.resolve({ default: () => {} });
   const layouts = createLayouts({
     "/app/routes/_layout.tsx": noop,
     "/app/routes/admin/_layout.tsx": noop,
   });
-  assertEquals(resolveLayout("/", layouts)?.prefix, "/");
-  assertEquals(resolveLayout("/about", layouts)?.prefix, "/");
-  assertEquals(resolveLayout("/admin", layouts)?.prefix, "/admin");
-  assertEquals(resolveLayout("/admin/users", layouts)?.prefix, "/admin");
+  assertEquals(resolveLayouts("/", layouts).map((l) => l.prefix), ["/"]);
+  assertEquals(resolveLayouts("/about", layouts).map((l) => l.prefix), ["/"]);
+  // An admin route nests both: root layout, then admin layout.
+  assertEquals(resolveLayouts("/admin", layouts).map((l) => l.prefix), [
+    "/",
+    "/admin",
+  ]);
+  assertEquals(resolveLayouts("/admin/users", layouts).map((l) => l.prefix), [
+    "/",
+    "/admin",
+  ]);
   // "/administrators" must not match the "/admin" prefix (segment boundary).
-  assertEquals(resolveLayout("/administrators", layouts)?.prefix, "/");
+  assertEquals(
+    resolveLayouts("/administrators", layouts).map((l) => l.prefix),
+    [
+      "/",
+    ],
+  );
 });
 
-Deno.test("resolveLayout — no ancestor → undefined (built-in shell)", () => {
+Deno.test("resolveLayouts — no ancestor → empty (page renders bare in shell)", () => {
   const noop = () => Promise.resolve({ default: () => {} });
   const layouts = createLayouts({ "/app/routes/admin/_layout.tsx": noop });
-  assertEquals(resolveLayout("/about", layouts), undefined);
-  assertEquals(resolveLayout("/admin/x", layouts)?.prefix, "/admin");
+  assertEquals(resolveLayouts("/about", layouts), []);
+  assertEquals(resolveLayouts("/admin/x", layouts).map((l) => l.prefix), [
+    "/admin",
+  ]);
 });

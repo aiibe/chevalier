@@ -19,6 +19,7 @@ const MANIFEST: ReadonlyArray<readonly [string, string, boolean?]> = [
   ["gitignore", ".gitignore"],
   ["README.md", "README.md"],
   ["public/favicon.png", "public/favicon.png", true],
+  ["app/routes/_app.tsx", "app/routes/_app.tsx"],
   ["app/routes/_layout.tsx", "app/routes/_layout.tsx"],
   ["app/routes/_404.tsx", "app/routes/_404.tsx"],
   ["app/routes/_error.tsx", "app/routes/_error.tsx"],

@@ -22,7 +22,14 @@ export type {
   ViteManifestChunk,
 } from "./manifest.ts";
 
-export { Layout, Stylesheets } from "./layout.tsx";
+export {
+  App,
+  Head,
+  Layout,
+  PageHead,
+  Stylesheets,
+  StylesProvider,
+} from "./layout.tsx";
 export type { LayoutProps } from "./layout.tsx";
 
 export { hydrateIslands } from "./client.ts";
@@ -35,7 +42,7 @@ export {
   createMiddleware,
   createRoutes,
   fileToPath,
-  resolveLayout,
+  resolveLayouts,
 } from "./router.ts";
 export type {
   Layout as LayoutRoute,

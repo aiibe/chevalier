@@ -13,8 +13,8 @@ export function appRel(file: string, appRoot: string): string | null {
   return null;
 }
 
-// "route" reloads only matching browsers; "broadcast" reloads all because a
-// _layout / _middleware wraps many routes and can't be cheaply mapped to one URL.
+// "route" reloads only matching browsers; "broadcast" reloads all because an
+// _app / _layout / _middleware wraps many routes, not cheaply mapped to one URL.
 export type ReloadKind = "route" | "broadcast" | null;
 
 export function reloadKind(
@@ -23,7 +23,11 @@ export function reloadKind(
 ): { kind: ReloadKind; rel: string | null } {
   const rel = appRel(file, appRoot);
   if (rel === null || isIsland(rel)) return { kind: null, rel };
-  if (rel.includes("_layout") || isMiddleware(rel)) {
+  // _app is the app-root document shell; _layout wraps a dir subtree (any depth).
+  if (
+    /(^|\/)_app\.[jt]sx$/.test(rel) || rel.includes("_layout") ||
+    isMiddleware(rel)
+  ) {
     return { kind: "broadcast", rel };
   }
   if (rel.startsWith("routes/")) return { kind: "route", rel };

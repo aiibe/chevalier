@@ -97,6 +97,19 @@ Deno.test("hot-reload — layout edit broadcasts to all clients", () => {
   assertEquals(onAbout.sent, [], "layout uses broadcast, not per-client send");
 });
 
+Deno.test("hot-reload — _app shell edit broadcasts to all clients", () => {
+  const { p, server, broadcast, mkClient, report } = fakeServer();
+  const onAbout = mkClient();
+  report(onAbout, "/about");
+  const r = p.handleHotUpdate({
+    file: "/proj/app/routes/_app.tsx",
+    server,
+  });
+  assertEquals(r, []);
+  assertEquals(broadcast, [{ type: "full-reload" }], "_app broadcasts");
+  assertEquals(onAbout.sent, [], "_app uses broadcast, not per-client send");
+});
+
 Deno.test("hot-reload — middleware edit broadcasts to all clients", () => {
   const { p, server, broadcast, mkClient, report } = fakeServer();
   const onAbout = mkClient();
@@ -175,6 +188,7 @@ Deno.test("generateApp emits a defineApp app with discovered pages", () => {
   Deno.mkdirSync(`${dir}/app/routes`, { recursive: true });
   const page = "export default () => null;";
   Deno.writeTextFileSync(`${dir}/app/routes/_layout.tsx`, page);
+  Deno.writeTextFileSync(`${dir}/app/routes/_app.tsx`, page);
   Deno.writeTextFileSync(`${dir}/app/routes/_404.tsx`, page);
 
   const code = generateApp("app", dir, {
@@ -200,6 +214,8 @@ Deno.test("generateApp emits a defineApp app with discovered pages", () => {
     code.includes(`import notFound from "/app/routes/_404.tsx"`),
     true,
   );
+  // _app is a single-instance convention page (app-root only), like _404.
+  assertEquals(code.includes(`import app from "/app/routes/_app.tsx"`), true);
   assertEquals(code.includes("_error"), false);
   assertEquals(code.includes("export default defineApp("), true);
 

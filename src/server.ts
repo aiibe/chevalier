@@ -16,14 +16,16 @@ import {
   type LayoutModule,
   type Middleware,
   type MiddlewareModule,
-  resolveLayout,
+  resolveLayouts,
   type Route,
   type RouteModule,
 } from "./router.ts";
 import {
+  App as DefaultApp,
   Layout as DefaultLayout,
   type LayoutProps,
   PageBody,
+  StylesProvider,
 } from "./layout.tsx";
 import { buildBoot } from "./boot.ts";
 import { collectIslands } from "./registry.tsx";
@@ -54,20 +56,26 @@ export interface CreateAppOptions {
   middleware?: Record<string, Loader<MiddlewareModule>>;
   /**
    * `_layout.tsx` modules, app-root-relative path → loader (same glob as
-   * routes). Each is a full document shell for its directory + subtree; the
-   * nearest ancestor wins with no composition (a nested layout replaces its
-   * ancestors). Routes with no `_layout` ancestor use the built-in shell.
+   * routes). Body-only chrome for a directory + subtree; ancestors compose
+   * (nest) outer→inner inside the app shell. A route with no `_layout` ancestor
+   * renders bare in the shell.
    */
   layouts?: Record<string, Loader<LayoutModule>>;
+  /**
+   * The app shell (default export of app/routes/_app.tsx): the single
+   * <html>/<head>/<body> document wrapping every page. Falls back to the
+   * built-in App. Layouts (layouts) compose inside its <body>.
+   */
+  appShell?: ComponentType<LayoutProps>;
   /** id → client URL for every island (dev URL, or hashed chunk for a build). */
   islandUrls?: Record<string, string>;
-  /** Optional 404 page (default export of app/routes/_404.tsx). Rendered in the layout with status 404. */
+  /** Optional 404 page (default export of app/routes/_404.tsx). Rendered in the app shell with status 404. */
   notFound?: ComponentType<Record<string, unknown>>;
   /** Optional error page (default export of app/routes/_error.tsx). Receives `error`; rendered with status 500. */
   error?: ComponentType<{ error: unknown }>;
   /** Parsed `.vite/manifest.json`; resolves the client entry to its hashed chunk. */
   manifest?: ViteManifest;
-  /** Resolved stylesheets, injected into every layout render (defineApp maps `styles`). */
+  /** Resolved stylesheets, provided to <Head>/<Stylesheets> via context (defineApp maps `styles`). */
   styles?: StyleEntry[];
   /** Base Hono app to mount onto (default: new Hono). */
   app?: Hono;
@@ -121,23 +129,25 @@ export function createApp(options: CreateAppOptions): Hono {
   const routes: Route[] = createRoutes(options.routes);
   const middleware: Middleware[] = createMiddleware(options.middleware ?? {});
   const layouts: Layout[] = createLayouts(options.layouts ?? {});
+  const AppShell = options.appShell ?? DefaultApp;
 
-  // Resolve a route path to its nearest layout component, loaded + cached.
-  // undefined → the built-in shell. See resolveLayout / TODO.md.
+  // Resolve a route path to its ancestor layout components, outer→inner, each
+  // loaded + cached. They nest inside the app shell; empty → page renders bare.
   const layoutCache = new Map<string, ComponentType<LayoutProps>>();
-  const loadLayout = async (
+  const loadLayouts = (
     routePath: string,
-  ): Promise<ComponentType<LayoutProps>> => {
-    const match = resolveLayout(routePath, layouts);
-    if (!match) return DefaultLayout;
-    let Layout = layoutCache.get(match.file);
-    if (!Layout) {
-      Layout = ((await match.load()).default ??
-        DefaultLayout) as ComponentType<LayoutProps>;
-      layoutCache.set(match.file, Layout);
-    }
-    return Layout;
-  };
+  ): Promise<ComponentType<LayoutProps>[]> =>
+    Promise.all(
+      resolveLayouts(routePath, layouts).map(async (match) => {
+        let Layout = layoutCache.get(match.file);
+        if (!Layout) {
+          Layout = ((await match.load()).default ??
+            DefaultLayout) as ComponentType<LayoutProps>;
+          layoutCache.set(match.file, Layout);
+        }
+        return Layout;
+      }),
+    );
 
   // Mount before routes: Hono runs use() in registration order, and
   // createMiddleware sorts shallowest-first, so guards compose outer-to-inner.
@@ -150,23 +160,28 @@ export function createApp(options: CreateAppOptions): Hono {
   }
 
   // Two-pass: collect islands + HTML, then render the shell with the boot script.
+  // Layouts nest outer→inner inside the app shell, wrapping the page body.
   const renderDoc = (
-    Layout: ComponentType<LayoutProps>,
+    Layouts: ComponentType<LayoutProps>[],
     Page: ComponentType<Record<string, unknown>>,
     props: Record<string, unknown>,
     nonce?: string,
   ): string => {
-    const { html, ids, props: islandProps } = collectIslands(() =>
-      renderToString(h(Page, props) as VNode)
+    const { html, ids, props: islandProps, head: pageHead } = collectIslands(
+      () => renderToString(h(Page, props) as VNode),
     );
     const boot = buildBoot(ids, islandProps, islandUrls, clientEntry);
-    const doc = h(
-      Layout,
-      {
-        children: h(PageBody, { html, boot, nonce }) as VNode,
-        styles,
-      } satisfies LayoutProps,
-    ) as VNode;
+    // Wrap the page body in each layout inner→outer, then the app shell.
+    const body = Layouts.reduceRight(
+      (children, Layout) =>
+        h(Layout, { children } satisfies LayoutProps) as VNode,
+      h(PageBody, { html, boot, nonce }) as VNode,
+    );
+    const doc = h(StylesProvider, {
+      styles,
+      pageHead,
+      children: h(AppShell, { children: body } satisfies LayoutProps) as VNode,
+    }) as VNode;
     return "<!DOCTYPE html>" + renderToString(doc);
   };
 
@@ -219,9 +234,9 @@ export function createApp(options: CreateAppOptions): Hono {
       if (result) data = result;
     }
 
-    const Layout = await loadLayout(route.path);
+    const Layouts = await loadLayouts(route.path);
     const html = renderDoc(
-      Layout,
+      Layouts,
       Page,
       { params: c.req.param(), ...data },
       readNonce(c),
@@ -249,13 +264,13 @@ export function createApp(options: CreateAppOptions): Hono {
   }
 
   // Convention pages. `_404` catches every unmatched route and each page's
-  // `c.notFound()`; `_error` catches thrown errors. Both render in the shell
-  // resolved from the request path (an unmatched /admin/x gets the admin shell).
+  // `c.notFound()`; `_error` catches thrown errors. Both render in the layouts
+  // resolved from the request path (an unmatched /admin/x gets the admin chrome).
   const NotFound = options.notFound;
   if (NotFound) {
     app.notFound(async (c) => {
-      const Layout = await loadLayout(new URL(c.req.url).pathname);
-      return c.html(renderDoc(Layout, NotFound, {}, readNonce(c)), 404);
+      const Layouts = await loadLayouts(new URL(c.req.url).pathname);
+      return c.html(renderDoc(Layouts, NotFound, {}, readNonce(c)), 404);
     });
   }
   const ErrorPage = options.error as
@@ -263,9 +278,9 @@ export function createApp(options: CreateAppOptions): Hono {
     | undefined;
   if (ErrorPage) {
     app.onError(async (err, c) => {
-      const Layout = await loadLayout(new URL(c.req.url).pathname);
+      const Layouts = await loadLayouts(new URL(c.req.url).pathname);
       return c.html(
-        renderDoc(Layout, ErrorPage, { error: err }, readNonce(c)),
+        renderDoc(Layouts, ErrorPage, { error: err }, readNonce(c)),
         500,
       );
     });
@@ -288,8 +303,10 @@ export interface DefineAppOptions {
    * Default `["app/styles.css"]` (the scaffold's Tailwind entry). `[]` to opt out.
    */
   styles?: string[];
-  /** `_layout.tsx` modules from a glob over `app/routes` (nearest ancestor wins). */
+  /** `_layout.tsx` modules from a glob over `app/routes` (all ancestors nest). */
   layouts?: Record<string, Loader<LayoutModule>>;
+  /** The app shell (default export of `app/routes/_app.tsx`); the built-in App if omitted. */
+  app?: ComponentType<LayoutProps>;
   notFound?: ComponentType<Record<string, unknown>>;
   error?: ComponentType<{ error: unknown }>;
 }
@@ -316,6 +333,7 @@ export function defineApp(options: DefineAppOptions): Hono {
     routes: options.routes,
     middleware: options.middleware,
     layouts: options.layouts,
+    appShell: options.app,
     notFound: options.notFound,
     error: options.error,
     manifest,

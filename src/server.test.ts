@@ -2,6 +2,7 @@ import { assertEquals } from "@std/assert";
 import { type Context, Hono } from "hono";
 import { h, type VNode } from "preact";
 import { createApp, defineApp } from "./server.ts";
+import { PageHead } from "./layout.tsx";
 
 // Handlers declare file-relative paths (`/`, not `/api`): server.ts strips the
 // mount prefix before forwarding to the sub-app. See TODO.md.
@@ -200,13 +201,71 @@ Deno.test("defineApp with styles:[] links no stylesheet", async () => {
   assertEquals(html.includes("stylesheet"), false);
 });
 
-// A minimal document shell that tags its output, so a test can assert which
-// _layout rendered a given route (see nested-layout tests below). Renders
-// `children` like a real user layout — the server pre-wraps the page HTML.
-const shell = (tag: string) => ({ children }: { children: VNode }) =>
-  h("html", null, h("body", { "data-shell": tag }, children));
+Deno.test("page <PageHead> teleports tags into the shell <head>", async () => {
+  const Page = () =>
+    h("div", null, [
+      h(
+        PageHead,
+        null,
+        h("meta", { name: "description", content: "about page" }),
+      ),
+      h("h1", null, "About"),
+    ]);
+  const app = createApp({
+    routes: {
+      "/app/routes/about.tsx": () => Promise.resolve({ default: Page }),
+    },
+  });
 
-Deno.test("nested _layout — nearest ancestor wins, replaces the root shell", async () => {
+  const html = await (await app.request("/about")).text();
+  const headEnd = html.indexOf("</head>");
+  const bodyStart = html.indexOf("<body");
+  // The page-contributed <meta> lands inside <head>, not in the body.
+  assertEquals(
+    html.slice(0, headEnd).includes(
+      '<meta name="description" content="about page"',
+    ),
+    true,
+  );
+  // And its in-place position (the <div>) renders nothing extra in the body.
+  assertEquals(html.slice(bodyStart).includes("description"), false);
+});
+
+Deno.test("page <PageHead> <title> overrides the shell default", async () => {
+  const Page = () =>
+    h("div", null, h(PageHead, null, h("title", null, "About — page")));
+  const app = createApp({
+    routes: {
+      "/app/routes/about.tsx": () => Promise.resolve({ default: Page }),
+    },
+  });
+
+  const html = await (await app.request("/about")).text();
+  // Exactly one <title>, and it's the page's — the layout's "Chevalier" default is dropped.
+  assertEquals(html.match(/<title>/g)?.length, 1);
+  assertEquals(html.includes("<title>About — page</title>"), true);
+  assertEquals(html.includes("Chevalier</title>"), false);
+});
+
+Deno.test("layout default <title> stands when a page sets none", async () => {
+  const app = createApp({
+    routes: {
+      "/app/routes/index.tsx": () =>
+        Promise.resolve({ default: () => h("div", null, "home") }),
+    },
+  });
+
+  const html = await (await app.request("/")).text();
+  assertEquals(html.match(/<title>/g)?.length, 1);
+  assertEquals(html.includes("<title>Chevalier</title>"), true);
+});
+
+// A body-only layout that tags its output, so a test can assert which layouts
+// nested around a route. Layouts wrap `children`; the app shell owns <html>.
+const shell = (tag: string) => ({ children }: { children: VNode }) =>
+  h("div", { "data-shell": tag }, children);
+
+Deno.test("nested _layout — ancestors compose outer→inner", async () => {
   const page = (name: string) => () =>
     Promise.resolve({ default: () => h("div", null, name) });
   const app = createApp({
@@ -223,18 +282,26 @@ Deno.test("nested _layout — nearest ancestor wins, replaces the root shell", a
     },
   });
 
+  // "/" gets only the root layout.
   const home = await (await app.request("/")).text();
   assertEquals(home.includes('data-shell="root"'), true);
+  assertEquals(home.includes('data-shell="admin"'), false);
 
+  // An admin route nests both, root outside admin.
   const adminHome = await (await app.request("/admin")).text();
+  assertEquals(adminHome.includes('data-shell="root"'), true);
   assertEquals(adminHome.includes('data-shell="admin"'), true);
-  assertEquals(adminHome.includes('data-shell="root"'), false);
+  assertEquals(
+    adminHome.indexOf('data-shell="root"') <
+      adminHome.indexOf('data-shell="admin"'),
+    true,
+  );
 
   const adminUsers = await (await app.request("/admin/users")).text();
   assertEquals(adminUsers.includes('data-shell="admin"'), true);
 });
 
-Deno.test("nested _layout — route with no _layout ancestor uses the built-in shell", async () => {
+Deno.test("nested _layout — route with no _layout ancestor renders bare in the app shell", async () => {
   const app = createApp({
     routes: {
       "/app/routes/about.tsx": () =>
@@ -247,9 +314,25 @@ Deno.test("nested _layout — route with no _layout ancestor uses the built-in s
   });
 
   const html = await (await app.request("/about")).text();
-  // Built-in DefaultLayout wraps it in #chevalier-root; no custom shell tag.
+  // Built-in App shell wraps it in #chevalier-root; no layout tag applied.
   assertEquals(html.includes('id="chevalier-root"'), true);
   assertEquals(html.includes("data-shell="), false);
+});
+
+Deno.test("_app.tsx shell replaces the built-in document shell", async () => {
+  const AppShell = ({ children }: { children: VNode }) =>
+    h("html", { "data-app": "custom" }, h("body", null, children));
+  const app = createApp({
+    routes: {
+      "/app/routes/index.tsx": () =>
+        Promise.resolve({ default: () => h("div", null, "home") }),
+    },
+    appShell: AppShell,
+  });
+
+  const html = await (await app.request("/")).text();
+  assertEquals(html.includes('data-app="custom"'), true);
+  assertEquals(html.includes('id="chevalier-root"'), true);
 });
 
 Deno.test("_404 page renders in the layout for unmatched routes", async () => {

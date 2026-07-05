@@ -270,19 +270,76 @@ emits no client script at all.
 
 Drop these files in `app/routes/` and Chevalier picks them up — no wiring:
 
-- `_layout.tsx` is the document shell (`<html>`…`<body>`) wrapping a page. Drop
-  one at any level to shell that directory and everything under it; the nearest
-  one to a route applies. Each is a complete document — a nested `_layout.tsx`
-  replaces its parent rather than nesting inside it, so it must render
-  `<Stylesheets>` and `{children}` itself. Routes with no `_layout.tsx` ancestor
-  use the built-in shell.
+- `_app.tsx` is the **document shell**: the single `<html>`…`<body>` structure
+  wrapping every page. There's one, app-root-only. Render `<Head>` for the
+  `<head>` — it adds charset/viewport meta and your stylesheets, and you put the
+  app-wide `<title>`, favicon, and any extra tags inside it — and `{children}`
+  for the page. Omit the file to use the built-in shell.
+
+  ```tsx
+  // app/routes/_app.tsx
+  import { Head, type LayoutProps } from "chevalier";
+
+  export default function App({ children }: LayoutProps) {
+    return (
+      <html lang="en">
+        <Head>
+          <title>My App</title>
+          <link rel="icon" href="/favicon.png" />
+        </Head>
+        <body>{children}</body>
+      </html>
+    );
+  }
+  ```
+
+- `_layout.tsx` is **body-only chrome** (nav, sidebar, footer) wrapping a page.
+  Drop one at any level to wrap that directory and everything under it. Layouts
+  **nest**: a route gets every ancestor `_layout.tsx`, outer→inner, each
+  wrapping the next via `{children}`, all inside the app shell. A route with no
+  `_layout.tsx` ancestor renders bare in the shell.
+
+  ```tsx
+  // app/routes/_layout.tsx
+  import type { LayoutProps } from "chevalier";
+
+  export default function Layout({ children }: LayoutProps) {
+    return (
+      <>
+        <nav>…</nav>
+        {children}
+      </>
+    );
+  }
+  ```
+
+Per-page head: render `<PageHead>` anywhere in a page's JSX to add tags to
+`<head>` — a `<title>`, meta, links. They land in the shell's `<Head>`, and a
+page `<title>` overrides the shell default:
+
+```tsx
+import { PageHead } from "chevalier";
+
+export default function About() {
+  return (
+    <>
+      <PageHead>
+        <title>About — My App</title>
+        <meta name="description" content="…" />
+      </PageHead>
+      <h1>About</h1>
+    </>
+  );
+}
+```
+
 - `_404.tsx` renders with status 404 for any unmatched route (and for a page's
   own `c.notFound()`).
 - `_error.tsx` renders with status 500 and receives the thrown `error` as a
   prop.
 
-`_404` and `_error` are opt-in and app-root-only; omit either to fall back to
-Hono's defaults. `_layout.tsx` and `_middleware.ts` (see
+`_app`, `_404`, and `_error` are opt-in and app-root-only; omit any to fall back
+to the built-in shell / Hono's defaults. `_layout.tsx` and `_middleware.ts` (see
 [Middleware](#middleware)) are both per-directory.
 
 ## Alternatives

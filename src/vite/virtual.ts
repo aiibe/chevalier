@@ -6,6 +6,7 @@ import { MANIFEST_PATH } from "../manifest.ts";
 
 /** Single-instance convention pages (app-root only): source file → option key. */
 const CONVENTION_PAGES: ReadonlyArray<readonly [string, string]> = [
+  ["_app", "app"],
   ["_404", "notFound"],
   ["_error", "error"],
 ];

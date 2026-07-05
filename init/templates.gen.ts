@@ -43,9 +43,14 @@ const FILES: TemplateFile[] = [
     encoding: "base64",
   },
   {
+    path: "app/routes/_app.tsx",
+    contents:
+      '// The app shell: the one document wrapping every page. Layouts and the page\n// nest inside <body> as {children}.\n\nimport { Head, type LayoutProps } from "chevalier";\n\nexport default function App({ children }: LayoutProps) {\n  return (\n    <html lang="en">\n      <Head>\n        <title>Chevalier app</title>\n        <link rel="icon" href="/favicon.png" type="image/png" />\n      </Head>\n      <body class="mx-auto max-w-2xl p-8 text-gray-800">\n        {children}\n      </body>\n    </html>\n  );\n}\n',
+  },
+  {
     path: "app/routes/_layout.tsx",
     contents:
-      'import { type LayoutProps, Stylesheets } from "chevalier";\n\nexport default function Layout(\n  { children, styles }: LayoutProps,\n) {\n  return (\n    <html lang="en">\n      <head>\n        <meta charSet="utf-8" />\n        <meta name="viewport" content="width=device-width, initial-scale=1" />\n        <link rel="icon" href="/favicon.png" type="image/png" />\n        <Stylesheets styles={styles} />\n        <title>Chevalier app</title>\n      </head>\n      <body class="mx-auto max-w-2xl p-8 text-gray-800">\n        <nav class="mb-8 flex gap-3 text-sm text-gray-500">\n          <a class="hover:text-gray-900" href="/">home</a>\n          <a class="hover:text-gray-900" href="/about">about</a>\n          <a class="hover:text-gray-900" href="/guestbook">guestbook</a>\n          <a class="hover:text-gray-900" href="/admin">admin</a>\n        </nav>\n        {children}\n      </body>\n    </html>\n  );\n}\n',
+      '// Root layout: body-only site chrome, nested inside the app shell (_app.tsx);\n// a nested _layout wraps this one\'s {children}.\n\nimport type { LayoutProps } from "chevalier";\n\nexport default function Layout({ children }: LayoutProps) {\n  return (\n    <>\n      <nav class="mb-8 flex gap-3 text-sm text-gray-500">\n        <a class="hover:text-gray-900" href="/">home</a>\n        <a class="hover:text-gray-900" href="/about">about</a>\n        <a class="hover:text-gray-900" href="/guestbook">guestbook</a>\n        <a class="hover:text-gray-900" href="/admin">admin</a>\n      </nav>\n      {children}\n    </>\n  );\n}\n',
   },
   {
     path: "app/routes/_404.tsx",

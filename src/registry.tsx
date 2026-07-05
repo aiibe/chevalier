@@ -32,30 +32,47 @@ interface Collector {
   // Island-nesting depth; >0 means inside another island, so nested islands
   // emit no marker (the outer one re-renders them on the client).
   depth: number;
+  // Head vnodes a page pushes via <PageHead> during this render, teleported into
+  // the shell's real <head> afterward (see src/layout.tsx pushHead/PageHead).
+  head: VNode[];
 }
 
 // renderToString is sync/single-threaded, so a module-level current collector
 // is safe — no context threading needed.
 let currentCollector: Collector | null = null;
 
-/** Run `fn` under a fresh collector; returns its result plus the collected ids/props. */
+/**
+ * Run `fn` under a fresh collector; returns its result plus the collected
+ * island ids/props and any page-contributed head vnodes.
+ */
 export function collectIslands<T>(
   fn: () => T,
-): { html: T; ids: string[]; props: Record<string, unknown>[] } {
+): { html: T; ids: string[]; props: Record<string, unknown>[]; head: VNode[] } {
   const prev = currentCollector;
   const collector: Collector = {
     ids: new Map(),
     props: [],
     propsDedup: new Map(),
     depth: 0,
+    head: [],
   };
   currentCollector = collector;
   try {
     const html = fn();
-    return { html, ids: [...collector.ids.keys()], props: collector.props };
+    return {
+      html,
+      ids: [...collector.ids.keys()],
+      props: collector.props,
+      head: collector.head,
+    };
   } finally {
     currentCollector = prev; // restore, not null — supports nesting
   }
+}
+
+/** Push a page's <PageHead> children into the active collector. No-op with no collector. */
+export function pushHead(node: VNode): void {
+  currentCollector?.head.push(node);
 }
 
 /** id → component index in the active collector, assigned on first sight. */

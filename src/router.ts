@@ -175,21 +175,22 @@ export function createLayouts(
     if (!file.startsWith("routes/") || !isLayout(file)) continue;
     layouts.push({ prefix: conventionDirToPath(file), file, load });
   }
-  // Deepest first so resolveLayout's first prefix match is the nearest ancestor.
-  layouts.sort((a, b) => depth(b.prefix) - depth(a.prefix));
+  // Shallowest first: resolveLayouts returns ancestors outer→inner (root first).
+  layouts.sort((a, b) => depth(a.prefix) - depth(b.prefix));
   return layouts;
 }
 
 /**
- * The nearest ancestor layout for a route path: deepest prefix that the path
- * falls under, or undefined (caller uses the built-in default shell). No
- * composition — a nested _layout replaces its ancestors. See TODO.md.
+ * Every ancestor layout for a route path, outer→inner (root layout first, the
+ * route's own directory layout last). They compose: each wraps the next via
+ * `{children}`, the innermost wrapping the page. Empty → the page renders bare
+ * in the app shell (_app.tsx or the built-in default).
  */
-export function resolveLayout(
+export function resolveLayouts(
   routePath: string,
   layouts: Layout[],
-): Layout | undefined {
-  return layouts.find((l) => underPrefix(routePath, l.prefix));
+): Layout[] {
+  return layouts.filter((l) => underPrefix(routePath, l.prefix));
 }
 
 /** True iff `path` is `prefix` itself or nested beneath it (segment-aware). */

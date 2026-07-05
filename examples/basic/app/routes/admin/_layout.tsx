@@ -1,28 +1,15 @@
-// Per-directory layout for /admin: the nearest _layout fully replaces the root
-// shell (no composition), so it must render the whole document — Stylesheets +
-// {children} — itself.
+// Per-directory layout for /admin. Body-only and nests inside the root
+// _layout: admin pages get the site nav (root layout) then this admin sub-nav.
 
-import { type LayoutProps, Stylesheets } from "chevalier";
+import type { LayoutProps } from "chevalier";
 
-export default function AdminLayout(
-  { children, styles }: LayoutProps,
-) {
+export default function AdminLayout({ children }: LayoutProps) {
   return (
-    <html lang="en">
-      <head>
-        <meta charSet="utf-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <link rel="icon" href="/favicon.png" type="image/png" />
-        <Stylesheets styles={styles} />
-        <title>Chevalier — admin</title>
-      </head>
-      <body class="mx-auto max-w-2xl bg-gray-900 p-8 font-sans text-gray-100">
-        <nav class="mb-8 flex gap-3 text-sm text-gray-400">
-          <a class="hover:text-white" href="/">← site</a>
-          <a class="hover:text-white" href="/admin">admin</a>
-        </nav>
-        {children}
-      </body>
-    </html>
+    <section class="rounded-lg bg-gray-900 p-6 text-gray-100">
+      <nav class="mb-6 flex gap-3 text-sm text-gray-400">
+        <a class="hover:text-white" href="/admin">admin</a>
+      </nav>
+      {children}
+    </section>
   );
 }
