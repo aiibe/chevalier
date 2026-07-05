@@ -1,5 +1,6 @@
 import { assertEquals } from "@std/assert";
 import { chevalier } from "./vite.ts";
+import { chevalierConfig } from "./vite-config.ts";
 import { generateApp } from "./vite/virtual.ts";
 import { scopedPrefresh } from "./vite/prefresh.ts";
 
@@ -222,6 +223,59 @@ Deno.test("generateApp emits a defineApp app with discovered pages", () => {
   Deno.removeSync(dir, { recursive: true });
 });
 
+// Client build inputs: islands + client entry + the styles entry core owns
+// (absorbed from the old scaffold plugin; keyed so styleUrl resolves it).
+Deno.test("config — client build registers island, client, and styles inputs", () => {
+  const dir = Deno.makeTempDirSync();
+  Deno.mkdirSync(`${dir}/app/islands`, { recursive: true });
+  Deno.writeTextFileSync(
+    `${dir}/app/islands/counter.tsx`,
+    "export default () => null;",
+  );
+
+  const plugins = chevalier({ appRoot: "./app" }) as AnyPlugin[];
+  const core = plugins.find((p) => p.name === "chevalier");
+  const config: AnyPlugin = { root: dir };
+  core.config(config, { command: "build", isSsrBuild: false });
+
+  const input = config.build.rollupOptions.input as Record<string, string>;
+  // Manifest key is "app/styles.css" (leading slash normalized away), matching
+  // defineApp's default styles so styleUrl finds the hashed asset.
+  assertEquals(input.styles, "/app/styles.css");
+  assertEquals(input["islands/counter"], "app/islands/counter.tsx");
+  assertEquals(input["chevalier-client"], "chevalier:client");
+
+  Deno.removeSync(dir, { recursive: true });
+});
+
+// appRoot moves the styles input key too, so a relocated app dir still resolves.
+Deno.test("config — styles input follows a custom appRoot", () => {
+  const dir = Deno.makeTempDirSync();
+  Deno.mkdirSync(`${dir}/src/islands`, { recursive: true });
+
+  const plugins = chevalier({ appRoot: "./src" }) as AnyPlugin[];
+  const core = plugins.find((p) => p.name === "chevalier");
+  const config: AnyPlugin = { root: dir };
+  core.config(config, { command: "build", isSsrBuild: false });
+
+  const input = config.build.rollupOptions.input as Record<string, string>;
+  assertEquals(input.styles, "/src/styles.css");
+
+  Deno.removeSync(dir, { recursive: true });
+});
+
+// SSR build inputs the generated app, not styles/islands (client-only concerns).
+Deno.test("config — SSR build does not register the styles input", () => {
+  const plugins = chevalier({ appRoot: "./app" }) as AnyPlugin[];
+  const core = plugins.find((p) => p.name === "chevalier");
+  const config: AnyPlugin = { root: Deno.cwd() };
+  core.config(config, { command: "build", isSsrBuild: true });
+
+  const input = config.build.rollupOptions.input as Record<string, string>;
+  assertEquals("styles" in input, false);
+  assertEquals(input.server, "virtual:chevalier-app");
+});
+
 // The plugin returns [core, prefresh]; both must be present so islands HMR.
 Deno.test("chevalier returns core + scoped prefresh plugins", () => {
   const plugins = chevalier({ appRoot: "./app" }) as AnyPlugin[];
@@ -229,6 +283,16 @@ Deno.test("chevalier returns core + scoped prefresh plugins", () => {
   const names = plugins.map((p) => p.name);
   assertEquals(names.includes("chevalier"), true);
   assertEquals(names.includes("chevalier:prefresh"), true);
+});
+
+// Core owns Tailwind, so the scaffold config is defineConfig(chevalierConfig()).
+Deno.test("chevalierConfig bundles chevalier, tailwind, and deno plugins", () => {
+  const config = chevalierConfig()({ isSsrBuild: false });
+  const names = (config.plugins as AnyPlugin[]).flat()
+    .map((p) => p && p.name).filter(Boolean) as string[];
+  assertEquals(names.includes("chevalier"), true);
+  assertEquals(names.some((n) => n.startsWith("@tailwindcss/vite")), true);
+  assertEquals(names.some((n) => n === "deno" || n.startsWith("deno:")), true);
 });
 
 // Serve-mode transform harness with a fake plugin ctx capturing this.warn().

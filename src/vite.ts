@@ -90,6 +90,10 @@ export function chevalier(options: ChevalierOptions = {}): Plugin[] {
         Object.assign(input, islands);
         // Keyed by CLIENT_NAME so the chunk's manifest `name` is stable for resolveClientEntry.
         input[CLIENT_NAME] = clientVirtualId;
+        // app/styles.css as a client input so Tailwind emits a hashed,
+        // manifest-listed asset (defineApp's default styles → styleUrl resolves
+        // it). Leading slash → manifest key "<appRoot>/styles.css".
+        input["styles"] = `/${appRootRel}/styles.css`;
         config.build ??= {};
         config.build.rollupOptions ??= {};
         config.build.rollupOptions.input = input;

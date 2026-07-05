@@ -2,6 +2,7 @@
 
 import type { PluginOption, UserConfig } from "vite";
 import deno from "@deno/vite-plugin";
+import tailwindcss from "@tailwindcss/vite";
 import { chevalier, type ChevalierOptions } from "./vite.ts";
 
 type ConfigFn = (env: { isSsrBuild?: boolean }) => UserConfig;
@@ -30,8 +31,10 @@ export function chevalierConfig(
     // Under Deno the esbuild optimizer skips its .vite/deps cache (404s).
     optimizeDeps: { noDiscovery: true, include: [] },
     // chevalier before deno so it claims virtual:chevalier-* before the deno
-    // loader rejects the virtual: scheme. Cast: separate node_modules trees.
-    plugins: [chevalier(options), deno()] as PluginOption[],
+    // loader rejects the virtual: scheme. Tailwind is a blessed default; core
+    // owns it so the scaffold config stays a one-liner. Cast: separate
+    // node_modules trees.
+    plugins: [chevalier(options), tailwindcss(), deno()] as PluginOption[],
     build: isSsrBuild
       ? { outDir: "dist/server" }
       : { outDir: "dist/client", manifest: true },

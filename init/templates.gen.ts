@@ -19,7 +19,7 @@ const FILES: TemplateFile[] = [
   {
     path: "vite.config.ts",
     contents:
-      'import { defineConfig, type Plugin } from "vite";\nimport tailwindcss from "@tailwindcss/vite";\n\n// Dynamic import: a static `import "chevalier/vite"` (import-map specifier)\n// makes Vite\'s config bundler print a spurious UNRESOLVED_IMPORT.\nconst { chevalierConfig } = await import(import.meta.resolve("chevalier/vite"));\n\n// Registers app/styles.css as a client input so Tailwind emits it as a hashed,\n// manifest-listed asset (_layout.tsx resolves it via styleUrl). Its own config\n// hook so Vite deep-merges the input alongside chevalier\'s island inputs.\nconst stylesInput: Plugin = {\n  name: "chevalier-styles-input",\n  config(_config, env) {\n    if (env.command === "build" && !env.isSsrBuild) {\n      return {\n        build: { rollupOptions: { input: { styles: "/app/styles.css" } } },\n      };\n    }\n  },\n};\n\n// Pass { appRoot } to move the app dir from ./app; the SSR app is generated.\nconst base = chevalierConfig();\nexport default defineConfig((env) => {\n  const config = base(env);\n  return {\n    ...config,\n    plugins: [...(config.plugins ?? []), tailwindcss(), stylesInput],\n  };\n});\n',
+      'import { defineConfig } from "vite";\n\n// Dynamic import: a static `import "chevalier/vite"` (import-map specifier)\n// makes Vite\'s config bundler print a spurious UNRESOLVED_IMPORT.\nconst { chevalierConfig } = await import(import.meta.resolve("chevalier/vite"));\n\n// Pass { appRoot } to chevalierConfig() to move the app dir from ./app.\nexport default defineConfig(chevalierConfig());\n',
   },
   {
     path: "server.prod.ts",
