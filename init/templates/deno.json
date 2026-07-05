@@ -11,6 +11,7 @@
     "chevalier/client": "jsr:@chevalier/core@{{CORE}}/client",
     "chevalier/registry": "jsr:@chevalier/core@{{CORE}}/registry",
     "chevalier/static": "jsr:@chevalier/core@{{CORE}}/static",
+    "chevalier/testing": "jsr:@chevalier/core@{{CORE}}/testing",
     "chevalier/vite": "jsr:@chevalier/core@{{CORE}}/vite",
     "hono": "npm:hono@^4.6.0",
     "preact": "npm:preact@^10.24.0",

@@ -16,10 +16,6 @@
   middleware, but the docs should show the root `_middleware.ts` logger pattern
   and a health-check handler example.
 
-- **No app testing story.** An app author can't test a loader/action or render a
-  route without booting Vite. A tiny helper that builds the Hono app from globs
-  and hands back `fetch` would cover it.
-
 - **`init/templates/` is a hand-kept parallel of `examples/basic`.** The
   embed/drift-guard is done (`init/templates/` real files → `templates.gen.ts`
   via `deno task gen`, checked in CI by `gen:check`). But the two trees are

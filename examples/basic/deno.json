@@ -8,9 +8,11 @@
   "imports": {
     "chevalier": "../../src/mod.ts",
     "chevalier/registry": "../../src/registry.tsx",
+    "chevalier/testing": "../../src/testing.ts",
     "chevalier/vite": "../../src/vite-config.ts",
     "@astral/astral": "jsr:@astral/astral@^0.5.2",
     "@std/http": "jsr:@std/http@^1",
+    "@std/path": "jsr:@std/path@^1",
     "hono": "npm:hono@^4.6.0",
     "preact": "npm:preact@^10.24.0",
     "preact/": "npm:/preact@^10.24.0/",

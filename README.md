@@ -349,6 +349,38 @@ export default function About() {
 to the built-in shell / Hono's defaults. `_layout.tsx` and `_middleware.ts` (see
 [Middleware](#middleware)) are both per-directory.
 
+## Testing
+
+Test loaders, actions, middleware, and rendered pages without booting Vite.
+`createTestApp` builds the same app the dev server serves, straight from your
+`app/` directory, and every convention applies — pages, `_middleware`,
+`_layout`, `_404`, and the rest:
+
+```ts
+// tests/routes.test.ts
+import { assertEquals } from "@std/assert";
+import { createTestApp } from "chevalier/testing";
+
+const app = await createTestApp(new URL("../app", import.meta.url));
+
+Deno.test("home renders", async () => {
+  const res = await app.request("/");
+  assertEquals(res.status, 200);
+});
+
+Deno.test("admin requires login", async () => {
+  const res = await app.request("/admin", { redirect: "manual" });
+  assertEquals(res.status, 302);
+});
+```
+
+Run with `deno test -A`. Files named `*.test.*` or `*.spec.*` never become
+routes, so colocating tests under `app/routes/` works too.
+
+One difference from the dev server: islands render their server HTML, but the
+page carries no client script, so nothing hydrates. Assert on the HTML; check
+hydration in the browser.
+
 ## Alternatives
 
 Chevalier is inspired by these. Reach for them if they fit better.
