@@ -28,6 +28,11 @@ loader/action/session contracts.
 
 ## Unreleased
 
+_Scaffold (init 0.1.1):_ fixes a scaffold that pinned `@chevalier/core@^0.0.11`
+(so a fresh app pulled a pre-`0.1` core) and dropped the `chevalier/static`
+import needed by the production server. New apps now pin `^0.1.0` and boot
+`deno task start`.
+
 ## 0.1.0
 
 The API surface stabilizes. From here, breaking changes ship only in a new `0.y`
@@ -48,9 +53,8 @@ config. A HEAD request to a page now renders it (body stripped) instead of
 404ing or reaching the action, and a trailing-slash URL 308-redirects to its
 canonical path instead of 404ing.
 
-_Scaffold:_ the generated app ships a leaner import map — only the entries it
-uses — and picks up the above: loader data typed through to pages, Tailwind and
-styles in `chevalierConfig`, and errors logged server-side.
+_Scaffold:_ the generated app picks up the above: loader data typed through to
+pages, Tailwind and styles in `chevalierConfig`, and errors logged server-side.
 
 ## 0.0.11
 
