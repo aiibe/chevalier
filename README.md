@@ -274,8 +274,8 @@ Drop these files in `app/routes/` and Chevalier picks them up — no wiring:
   one at any level to shell that directory and everything under it; the nearest
   one to a route applies. Each is a complete document — a nested `_layout.tsx`
   replaces its parent rather than nesting inside it, so it must render
-  `<Stylesheets>` and the `boot` `<script>` itself. Routes with no `_layout.tsx`
-  ancestor use the built-in shell.
+  `<Stylesheets>` and `{children}` itself. Routes with no `_layout.tsx` ancestor
+  use the built-in shell.
 - `_404.tsx` renders with status 404 for any unmatched route (and for a page's
   own `c.notFound()`).
 - `_error.tsx` renders with status 500 and receives the thrown `error` as a

@@ -1,6 +1,6 @@
 import { assertEquals } from "@std/assert";
 import { type Context, Hono } from "hono";
-import { h } from "preact";
+import { h, type VNode } from "preact";
 import { createApp, defineApp } from "./server.ts";
 
 // Handlers declare file-relative paths (`/`, not `/api`): server.ts strips the
@@ -201,16 +201,10 @@ Deno.test("defineApp with styles:[] links no stylesheet", async () => {
 });
 
 // A minimal document shell that tags its output, so a test can assert which
-// _layout rendered a given route (see nested-layout tests below).
-const shell = (tag: string) => ({ childrenHtml }: { childrenHtml: string }) =>
-  h(
-    "html",
-    null,
-    h("body", {
-      "data-shell": tag,
-      dangerouslySetInnerHTML: { __html: childrenHtml },
-    }),
-  );
+// _layout rendered a given route (see nested-layout tests below). Renders
+// `children` like a real user layout — the server pre-wraps the page HTML.
+const shell = (tag: string) => ({ children }: { children: VNode }) =>
+  h("html", null, h("body", { "data-shell": tag }, children));
 
 Deno.test("nested _layout — nearest ancestor wins, replaces the root shell", async () => {
   const page = (name: string) => () =>

@@ -1,8 +1,7 @@
 import { type LayoutProps, Stylesheets } from "chevalier";
 
-// `boot` is "" for a page with no islands, shipping zero client JS.
 export default function Layout(
-  { childrenHtml, boot = "", nonce, styles }: LayoutProps,
+  { children, styles }: LayoutProps,
 ) {
   return (
     <html lang="en">
@@ -20,19 +19,7 @@ export default function Layout(
           <a class="hover:text-gray-900" href="/guestbook">guestbook</a>
           <a class="hover:text-gray-900" href="/admin">admin</a>
         </nav>
-        <main
-          id="chevalier-root"
-          dangerouslySetInnerHTML={{ __html: childrenHtml }}
-        />
-        {boot
-          ? (
-            <script
-              type="module"
-              nonce={nonce}
-              dangerouslySetInnerHTML={{ __html: boot }}
-            />
-          )
-          : null}
+        {children}
       </body>
     </html>
   );

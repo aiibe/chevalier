@@ -20,7 +20,11 @@ import {
   type Route,
   type RouteModule,
 } from "./router.ts";
-import { Layout as DefaultLayout, type LayoutProps } from "./layout.tsx";
+import {
+  Layout as DefaultLayout,
+  type LayoutProps,
+  PageBody,
+} from "./layout.tsx";
 import { buildBoot } from "./boot.ts";
 import { collectIslands } from "./registry.tsx";
 import {
@@ -152,13 +156,16 @@ export function createApp(options: CreateAppOptions): Hono {
     props: Record<string, unknown>,
     nonce?: string,
   ): string => {
-    const { html: childrenHtml, ids, props: islandProps } = collectIslands(() =>
+    const { html, ids, props: islandProps } = collectIslands(() =>
       renderToString(h(Page, props) as VNode)
     );
     const boot = buildBoot(ids, islandProps, islandUrls, clientEntry);
     const doc = h(
       Layout,
-      { childrenHtml, boot, nonce, styles } satisfies LayoutProps,
+      {
+        children: h(PageBody, { html, boot, nonce }) as VNode,
+        styles,
+      } satisfies LayoutProps,
     ) as VNode;
     return "<!DOCTYPE html>" + renderToString(doc);
   };
