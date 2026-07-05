@@ -8,15 +8,6 @@
 
 ## Nice-to-have
 
-- **Scaffold import map still pins three `chevalier` subpaths.** Trimmed from
-  six to `chevalier` + `client`/`static`/`vite` (dropped unused `registry`/
-  `testing` and the leaky `@prefresh/core`/`@prefresh/utils` peers, which
-  `@prefresh/vite` resolves from its own store). The three that remain can't
-  collapse to the base entry: Vite's config loader and client graph don't expand
-  JSR export subpaths from a bare-package mapping (only Deno's own resolver
-  does), so `chevalier/vite` and `chevalier/client` need explicit entries. The
-  `{{CORE}}` bump is already one edit via `CORE_VERSION` in gen-templates.ts.
-
 - **`init/templates/` is a hand-kept parallel of `examples/basic`.** The
   embed/drift-guard is done (`init/templates/` real files → `templates.gen.ts`
   via `deno task gen`, checked in CI by `gen:check`). But the two trees are
