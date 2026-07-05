@@ -3,6 +3,7 @@
 // serves rendered HTML. Mirrors HonoX's createApp signature/shape.
 
 import { type Context, Hono, type MiddlewareHandler } from "hono";
+import { bodyLimit } from "hono/body-limit";
 import { NONCE, secureHeaders } from "hono/secure-headers";
 import { routePath } from "hono/route";
 import type { ComponentType } from "preact";
@@ -97,6 +98,13 @@ export type PageAction = (c: Context) => Response | Promise<Response>;
  */
 export type PageMiddleware = MiddlewareHandler;
 
+// Actions buffer the whole body (formData) — cap it; bigger uploads belong in
+// a handler module. Direct 413, else a custom _error page turns it into a 500.
+const actionBodyLimit = bodyLimit({
+  maxSize: 1024 * 1024,
+  onError: (c) => c.text("Payload Too Large", 413),
+});
+
 function isHandlerModule(m: RouteModule): m is RouteModule & { app: Hono } {
   return !!m.app && typeof (m.app as Hono).fetch === "function";
 }
@@ -164,7 +172,12 @@ export function createApp(options: CreateAppOptions): Hono {
       if (!action) return c.notFound();
       // Actions mutate: reject cross-origin form posts (CSRF).
       if (!isSameOrigin(c)) return c.text("Forbidden", 403);
-      return action(c);
+      // Exactly one of these is set: `rejected` on exceed, `res` otherwise.
+      let res: Response | undefined;
+      const rejected = await actionBodyLimit(c, async () => {
+        res = await action(c);
+      });
+      return res ?? (rejected as Response);
     }
 
     const Page = mod.default as

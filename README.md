@@ -162,7 +162,9 @@ export default function Guestbook({ entries }: { entries: string[] }) {
 ```
 
 Actions are CSRF-protected out of the box: same-origin `<form>` posts just work,
-while a cross-origin post from a browser is rejected with a `403`.
+while a cross-origin post from a browser is rejected with a `403`. A post larger
+than 1 MiB is rejected with a `413` — plenty for forms; for file uploads, use a
+handler and set your own limit.
 
 Use `action` for a form that belongs to a page. For a standalone endpoint with
 no page, use a handler (below).

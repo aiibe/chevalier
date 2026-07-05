@@ -7,10 +7,6 @@
   empties `Map`/`Set` with no warning — the symptom is a subtly wrong island
   after hydration. Warn or throw when a prop won't round-trip.
 
-- **No request-body limit on actions.** `c.req.formData()` buffers the whole
-  body, so a large POST is a trivial memory-exhaustion vector. Apply Hono's
-  `bodyLimit` around actions with a sane default.
-
 - **No docs site.** The README ends at "full docs are on the way"; docs are part
   of production readiness. Ship them, plus a stated stability policy and a path
   from 0.0.x toward 0.1/1.0 with a changelog.

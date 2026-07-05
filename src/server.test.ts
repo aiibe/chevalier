@@ -121,6 +121,67 @@ Deno.test("page action allows a same-origin form post", async () => {
   assertEquals(byOrigin.status, 303);
 });
 
+Deno.test("action body over the limit is rejected with 413", async () => {
+  let ran = false;
+  const app = createApp({
+    routes: {
+      "/app/routes/index.tsx": () =>
+        Promise.resolve({
+          action: (c: Context) => {
+            ran = true;
+            return c.redirect("/", 303);
+          },
+          default: () => h("div", null, "home"),
+        }),
+    },
+  });
+
+  // String body carries Content-Length → rejected from the header alone.
+  const res = await app.request("/", {
+    method: "POST",
+    body: "x".repeat(1024 * 1024 + 1),
+  });
+  assertEquals(res.status, 413);
+  assertEquals(ran, false);
+
+  // Stream body has no Content-Length → rejected while reading, at the cap.
+  let sent = 0;
+  const chunk = new Uint8Array(64 * 1024);
+  const streamed = await app.request("/", {
+    method: "POST",
+    body: new ReadableStream({
+      pull(controller) {
+        if (sent > 2 * 1024 * 1024) return controller.close();
+        sent += chunk.length;
+        controller.enqueue(chunk);
+      },
+    }),
+    ...{ duplex: "half" },
+  });
+  assertEquals(streamed.status, 413);
+  assertEquals(ran, false);
+});
+
+Deno.test("action under the body limit reads its form body", async () => {
+  const app = createApp({
+    routes: {
+      "/app/routes/index.tsx": () =>
+        Promise.resolve({
+          action: async (c: Context) =>
+            c.text(String((await c.req.formData()).get("message"))),
+          default: () => h("div", null, "home"),
+        }),
+    },
+  });
+
+  const res = await app.request("/", {
+    method: "POST",
+    body: new URLSearchParams({ message: "hello" }),
+  });
+  assertEquals(res.status, 200);
+  assertEquals(await res.text(), "hello");
+});
+
 Deno.test("POST to a page action sub-path 404s (page owns only its path)", async () => {
   const app = createApp({
     routes: {
