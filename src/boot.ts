@@ -13,11 +13,12 @@ export function buildBoot(
     `import * as m${i} from ${JSON.stringify(urls[id])};`
   );
   const components = ids.map((_id, i) => `m${i}.default`);
-  // Escape `<` so a props string value can't break out of the </script>.
-  const propsJson = JSON.stringify(props).replace(/</g, "\\u003c");
-  return [
+  const src = [
     `import { hydrateIslands } from ${JSON.stringify(clientEntry)};`,
     ...imports,
-    `hydrateIslands([${components.join(",")}],${propsJson});`,
+    `hydrateIslands([${components.join(",")}],${JSON.stringify(props)});`,
   ].join("\n");
+  // Escape `<` across the whole module (props AND import URLs) so no
+  // interpolated string can break out of the inline </script>.
+  return src.replace(/</g, "\\u003c");
 }

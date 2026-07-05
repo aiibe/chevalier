@@ -41,3 +41,24 @@ Deno.test("buildBoot — escapes < in props so it can't break out of </script>",
   assertEquals(boot.includes("</script>"), false);
   assertEquals(boot.includes("\\u003c/script>"), true);
 });
+
+Deno.test("buildBoot — escapes < in the import URL, not just props", () => {
+  const boot = buildBoot(
+    ["islands/a"],
+    [{}],
+    { "islands/a": "/a.js#</script><b>" },
+    "/c.js",
+  );
+  assertEquals(boot.includes("</script>"), false);
+  assertEquals(boot.includes("\\u003c/script>"), true);
+});
+
+Deno.test("buildBoot — escapes < in the client entry URL", () => {
+  const boot = buildBoot(
+    ["islands/a"],
+    [{}],
+    { "islands/a": "/a.js" },
+    "/c.js#</script>",
+  );
+  assertEquals(boot.includes("</script>"), false);
+});
