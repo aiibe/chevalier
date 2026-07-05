@@ -12,10 +12,14 @@
   logs everyone out. Accept `string | string[]` (sign with the first, verify
   against all) — but only if someone actually hits this.
 
-- **Scaffold import map is heavy and leaky.** Twelve pinned imports, including
-  `@prefresh/core`/`@prefresh/utils` internals, and a core upgrade means editing
-  six `{{CORE}}` version strings by hand. Fold what core can re-export, and make
-  the version bump a single edit.
+- **Scaffold import map still pins three `chevalier` subpaths.** Trimmed from
+  six to `chevalier` + `client`/`static`/`vite` (dropped unused `registry`/
+  `testing` and the leaky `@prefresh/core`/`@prefresh/utils` peers, which
+  `@prefresh/vite` resolves from its own store). The three that remain can't
+  collapse to the base entry: Vite's config loader and client graph don't expand
+  JSR export subpaths from a bare-package mapping (only Deno's own resolver
+  does), so `chevalier/vite` and `chevalier/client` need explicit entries. The
+  `{{CORE}}` bump is already one edit via `CORE_VERSION` in gen-templates.ts.
 
 - **`init/templates/` is a hand-kept parallel of `examples/basic`.** The
   embed/drift-guard is done (`init/templates/` real files → `templates.gen.ts`

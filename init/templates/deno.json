@@ -9,9 +9,7 @@
   "imports": {
     "chevalier": "jsr:@chevalier/core@{{CORE}}",
     "chevalier/client": "jsr:@chevalier/core@{{CORE}}/client",
-    "chevalier/registry": "jsr:@chevalier/core@{{CORE}}/registry",
     "chevalier/static": "jsr:@chevalier/core@{{CORE}}/static",
-    "chevalier/testing": "jsr:@chevalier/core@{{CORE}}/testing",
     "chevalier/vite": "jsr:@chevalier/core@{{CORE}}/vite",
     "hono": "npm:hono@^4.6.0",
     "preact": "npm:preact@^10.24.0",
@@ -20,8 +18,6 @@
     "vite": "npm:vite@^8.0.0",
     "@deno/vite-plugin": "npm:@deno/vite-plugin@^2.0.2",
     "@prefresh/vite": "npm:@prefresh/vite@^2.4.0",
-    "@prefresh/core": "npm:@prefresh/core@^1.5.0",
-    "@prefresh/utils": "npm:@prefresh/utils@^1.2.0",
     "@tailwindcss/vite": "npm:@tailwindcss/vite@^4.0.0",
     "tailwindcss": "npm:tailwindcss@^4.0.0"
   },
