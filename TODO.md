@@ -1,16 +1,5 @@
 # TODO
 
-## Release notes (next version)
-
-- **Breaking: layout model split into `_app.tsx` + nesting `_layout.tsx`.** The
-  document shell (`<html>/<head>/<body>` + `<Head>`) now lives in a single
-  app-root `_app.tsx`; `_layout.tsx` files are body-only and _nest_ (compose
-  outer→inner) rather than the old nearest-wins-replaces model. `resolveLayout`
-  → `resolveLayouts`; new `App`/`Head` exports (the shell `<Head>`), and the
-  page-side head component is renamed `Head` → `PageHead`. Apps upgrading must
-  add an `_app.tsx`, strip `<html>`/`<head>` from their layouts, and rename any
-  page `<Head>` to `<PageHead>`.
-
 ## Nice-to-have
 
 - **`init/templates/` is a hand-kept parallel of `examples/basic`.** The
