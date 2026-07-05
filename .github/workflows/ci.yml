@@ -49,7 +49,7 @@ jobs:
         with:
           deno-version: v2.x
 
-      - uses: browser-actions/setup-chrome@v1
+      - uses: browser-actions/setup-chrome@v2
         id: chrome
         with:
           install-dependencies: true
