@@ -28,6 +28,13 @@ loader/action/session contracts.
 
 ## Unreleased
 
+_Scaffold (init 0.1.2):_ the generated app now includes a guarded `/admin`
+example — a per-directory `_middleware.ts` that redirects to `/login` without a
+session, a `/login` page that sets one, and an admin page that reads it and
+signs out. The template generator also fails if any file under `templates/` is
+left out of its manifest, so a scaffolded route can no longer silently go
+missing.
+
 _Scaffold (init 0.1.1):_ fixes a scaffold that pinned `@chevalier/core@^0.0.11`
 (so a fresh app pulled a pre-`0.1` core) and dropped the `chevalier/static`
 import needed by the production server. New apps now pin `^0.1.0` and boot
