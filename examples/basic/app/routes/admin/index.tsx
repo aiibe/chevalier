@@ -1,13 +1,13 @@
 // Reached only past the _middleware guard: the loader can trust a session.
-import type { PageAction, PageLoader } from "chevalier";
+import type { PageAction, PageLoader, PageProps } from "chevalier";
 import { getSession } from "chevalier";
 
 const SECRET = Deno.env.get("SESSION_SECRET") ?? "dev-only-not-secret";
 
-export const loader: PageLoader = async (c) => {
+export const loader = (async (c) => {
   const session = await getSession<{ user: string }>(c, SECRET);
   return { user: session.data.user };
-};
+}) satisfies PageLoader;
 
 // Log out, then land on the (now-guarded) page → redirected to /login.
 export const action: PageAction = async (c) => {
@@ -16,7 +16,7 @@ export const action: PageAction = async (c) => {
   return c.redirect("/admin", 303);
 };
 
-export default function Admin({ user }: { user?: string }) {
+export default function Admin({ user }: PageProps<typeof loader>) {
   return (
     <div>
       <h1 class="text-2xl font-semibold">Admin</h1>

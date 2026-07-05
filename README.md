@@ -117,17 +117,21 @@ A page also gets its route `params` as a prop. To fetch data before render,
 returns is merged into the page props. It may be `async`; render stays sync.
 Return a `Response` instead to short-circuit (redirect, 404, custom status).
 
+Type the loader with `satisfies PageLoader`, then type the page with
+`PageProps<typeof loader>` — the payload flows through, so the page can't drift
+from what the loader returns:
+
 ```tsx
 // app/routes/blog/[slug].tsx  →  GET /blog/:slug
-import type { PageLoader } from "@chevalier/core";
+import type { PageLoader, PageProps } from "@chevalier/core";
 
-export const loader: PageLoader = async (c) => {
+export const loader = (async (c) => {
   const post = await getPost(c.req.param("slug"));
   if (!post) return c.notFound(); // Response → skips render
   return { post };
-};
+}) satisfies PageLoader;
 
-export default function Post({ post }: { post: Post }) {
+export default function Post({ post, params }: PageProps<typeof loader>) {
   return <article>{post.title}</article>;
 }
 ```
@@ -141,9 +145,9 @@ both live in one file. Return a `303` redirect (normally back to the same path)
 
 ```tsx
 // app/routes/guestbook.tsx  →  GET renders, POST signs
-import type { PageAction, PageLoader } from "@chevalier/core";
+import type { PageAction, PageLoader, PageProps } from "@chevalier/core";
 
-export const loader: PageLoader = () => ({ entries: readEntries() });
+export const loader = (() => ({ entries: readEntries() })) satisfies PageLoader;
 
 export const action: PageAction = async (c) => {
   const message = (await c.req.formData()).get("message")?.toString();
@@ -151,7 +155,7 @@ export const action: PageAction = async (c) => {
   return c.redirect(c.req.path, 303); // PRG: re-GET runs the loader again
 };
 
-export default function Guestbook({ entries }: { entries: string[] }) {
+export default function Guestbook({ entries }: PageProps<typeof loader>) {
   return (
     <form method="post">
       <input name="message" />
@@ -234,8 +238,8 @@ directory — compose multiple concerns inside the handler.
 
 Logging and metrics are bring-your-own — Chevalier ships no logger. To log every
 request, put a `_middleware.ts` at the root of `app/routes`. Drop in Hono's
-[`logger`](https://hono.dev/docs/middleware/builtin/logger) for a quick start, or
-write your own for structured lines:
+[`logger`](https://hono.dev/docs/middleware/builtin/logger) for a quick start,
+or write your own for structured lines:
 
 ```ts
 // app/routes/_middleware.ts  →  logs every request

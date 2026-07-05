@@ -8,6 +8,7 @@ export type {
   PageAction,
   PageLoader,
   PageMiddleware,
+  PageProps,
 } from "./server.ts";
 
 export {

@@ -1,7 +1,7 @@
 // Form POST paved path: `loader` reads, `action` writes, both on this path.
 // The <form> posts to itself; action mutates then 303-redirects, the browser
 // re-GETs, and loader re-runs with the new entry. See README's forms section.
-import type { PageAction, PageLoader } from "chevalier";
+import type { PageAction, PageLoader, PageProps } from "chevalier";
 
 interface Entry {
   message: string;
@@ -13,7 +13,7 @@ const entries: Entry[] = [
   { message: "Islands all the way down.", at: "2026-07-04T00:00:00.000Z" },
 ];
 
-export const loader: PageLoader = () => ({ entries });
+export const loader = (() => ({ entries })) satisfies PageLoader;
 
 export const action: PageAction = async (c) => {
   const message = (await c.req.formData()).get("message")?.toString().trim();
@@ -21,7 +21,7 @@ export const action: PageAction = async (c) => {
   return c.redirect(c.req.path, 303);
 };
 
-export default function Guestbook(props: { entries: Entry[] }) {
+export default function Guestbook(props: PageProps<typeof loader>) {
   const { entries } = props;
   return (
     <div>

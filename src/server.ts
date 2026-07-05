@@ -76,14 +76,36 @@ export interface CreateAppOptions {
  * A page loader: runs before render, receiving the Hono context. Return a plain
  * object to merge into the page props, or a Response to short-circuit render
  * (redirect, 404, custom status). May be async — render stays sync.
+ *
+ * Parameterize the payload — `PageLoader<{ greeting: string }>` — to type the
+ * data through to the page via `PageProps<typeof loader>`.
  */
-export type PageLoader = (
+export type PageLoader<
+  T extends Record<string, unknown> = Record<string, unknown>,
+> = (
   c: Context,
 ) =>
   | Response
-  | Record<string, unknown>
+  | T
   | void
-  | Promise<Response | Record<string, unknown> | void>;
+  | Promise<Response | T | void>;
+
+/**
+ * The props a page receives: the loader's payload plus the injected route
+ * `params`. Use `PageProps<typeof loader>` so the page can't drift from the
+ * loader's return shape. With no loader, it's just `{ params }`.
+ */
+export type PageProps<L = PageLoader> = {
+  params: Record<string, string>;
+} & LoaderData<L>;
+
+// The payload merged into props (line 201): the loader's plain-object return,
+// with Response/void dropped.
+type LoaderData<L> = L extends (...args: never[]) => infer R
+  ? Awaited<R> extends infer A
+    ? A extends Record<string, unknown> ? A : Record<never, never>
+  : Record<never, never>
+  : Record<never, never>;
 
 /**
  * A page write hook: runs on a non-GET request at the page's own path (form

@@ -17,11 +17,6 @@
   six `{{CORE}}` version strings by hand. Fold what core can re-export, and make
   the version bump a single edit.
 
-- **Loader data isn't typed through to the page.** `PageLoader` returns
-  `Record<string, unknown>` and the page re-declares its props with nothing
-  checking they agree. Full RPC inference stays a non-goal; a type-only
-  `PageLoader<T>` + `PageProps<typeof loader>` helper would catch the drift.
-
 - **`init/templates/` is a hand-kept parallel of `examples/basic`.** The
   embed/drift-guard is done (`init/templates/` real files → `templates.gen.ts`
   via `deno task gen`, checked in CI by `gen:check`). But the two trees are
