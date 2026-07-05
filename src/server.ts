@@ -225,6 +225,8 @@ export function createApp(options: CreateAppOptions): Hono {
     | undefined;
   if (ErrorPage) {
     app.onError(async (err, c) => {
+      // Replacing Hono's default handler loses its logging; keep the operator log.
+      console.error(err);
       const Layouts = await loadLayouts(new URL(c.req.url).pathname);
       return c.html(
         renderDoc(Layouts, ErrorPage, { error: err }, readNonce(c)),

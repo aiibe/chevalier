@@ -528,11 +528,21 @@ Deno.test("_error page renders in the layout when a route throws", async () => {
       h("div", null, error instanceof Error ? error.message : String(error)),
   });
 
-  const res = await app.request("/");
-  assertEquals(res.status, 500);
-  const html = await res.text();
-  assertEquals(html.startsWith("<!DOCTYPE html>"), true);
-  assertEquals(html.includes("boom"), true);
+  const logged: unknown[] = [];
+  const original = console.error;
+  console.error = (...args: unknown[]) => logged.push(...args);
+  try {
+    const res = await app.request("/");
+    assertEquals(res.status, 500);
+    const html = await res.text();
+    assertEquals(html.startsWith("<!DOCTYPE html>"), true);
+    assertEquals(html.includes("boom"), true);
+  } finally {
+    console.error = original;
+  }
+  // The error must reach the operator, not just the visitor.
+  assertEquals(logged.length, 1);
+  assertEquals((logged[0] as Error).message, "boom");
 });
 
 Deno.test("_middleware runs before the page loader/render", async () => {

@@ -1,6 +1,34 @@
 # TODO
 
+## High
+
+- **Sessions never expire.** `getSession` sets no `maxAge` and the payload
+  embeds no timestamp, so a captured cookie verifies forever. Embed an `exp`
+  checked on read (or default a `maxAge`); consider `secret: string | string[]`
+  for rotation.
+
+- **Island props serialization fails silently.** Bare `JSON.stringify` in
+  `collectProps`/`buildBoot` mangles `Date`, drops `undefined`/functions, and
+  empties `Map`/`Set` with no warning — the symptom is a subtly wrong island
+  after hydration. Warn or throw when a prop won't round-trip.
+
+- **No request-body limit on actions.** `c.req.formData()` buffers the whole
+  body, so a large POST is a trivial memory-exhaustion vector. Apply Hono's
+  `bodyLimit` around actions with a sane default.
+
+- **No docs site.** The README ends at "full docs are on the way"; docs are part
+  of production readiness. Ship them, plus a stated stability policy and a path
+  from 0.0.x toward 0.1/1.0 with a changelog.
+
 ## Nice-to-have
+
+- **No observability guidance.** Logging is deliberately bring-your-own Hono
+  middleware, but the docs should show the root `_middleware.ts` logger pattern
+  and a health-check handler example.
+
+- **No app testing story.** An app author can't test a loader/action or render a
+  route without booting Vite. A tiny helper that builds the Hono app from globs
+  and hands back `fetch` would cover it.
 
 - **`init/templates/` is a hand-kept parallel of `examples/basic`.** The
   embed/drift-guard is done (`init/templates/` real files → `templates.gen.ts`

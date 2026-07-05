@@ -1,10 +1,10 @@
-// Rendered when a route throws (status 500). Wired via defineApp({ error }).
-export default function ErrorPage({ error }: { error: unknown }) {
-  const message = error instanceof Error ? error.message : String(error);
+// Rendered when a route throws (500); wired via defineApp({ error }).
+// The error is logged server-side; keep the visitor message generic.
+export default function ErrorPage() {
   return (
     <div>
       <h1>500 — Something went wrong</h1>
-      <p>{message}</p>
+      <p>An unexpected error occurred. Please try again.</p>
       <p>
         <a href="/">Go home</a>.
       </p>

@@ -60,7 +60,7 @@ const FILES: TemplateFile[] = [
   {
     path: "app/routes/_error.tsx",
     contents:
-      '// Rendered when a route throws (status 500). Wired via defineApp({ error }).\nexport default function ErrorPage({ error }: { error: unknown }) {\n  const message = error instanceof Error ? error.message : String(error);\n  return (\n    <div>\n      <h1>500 — Something went wrong</h1>\n      <p>{message}</p>\n      <p>\n        <a href="/">Go home</a>.\n      </p>\n    </div>\n  );\n}\n',
+      '// Rendered when a route throws (500); wired via defineApp({ error }).\n// The error is logged server-side; keep the visitor message generic.\nexport default function ErrorPage() {\n  return (\n    <div>\n      <h1>500 — Something went wrong</h1>\n      <p>An unexpected error occurred. Please try again.</p>\n      <p>\n        <a href="/">Go home</a>.\n      </p>\n    </div>\n  );\n}\n',
   },
   {
     path: "app/routes/index.tsx",

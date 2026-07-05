@@ -336,7 +336,7 @@ export default function About() {
 - `_404.tsx` renders with status 404 for any unmatched route (and for a page's
   own `c.notFound()`).
 - `_error.tsx` renders with status 500 and receives the thrown `error` as a
-  prop.
+  prop. The error is also logged server-side via `console.error`.
 
 `_app`, `_404`, and `_error` are opt-in and app-root-only; omit any to fall back
 to the built-in shell / Hono's defaults. `_layout.tsx` and `_middleware.ts` (see
