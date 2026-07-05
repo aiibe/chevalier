@@ -17,6 +17,7 @@ export function chevalierConfig(
       // JSR bakes core's import map into source (npm:pkg@x, npm:/pkg@x/sub); map
       // back to bare names or the SSR bundle can't resolve them.
       alias: [
+        { find: /^npm:\/preact@[^/]*\/(.*)$/, replacement: "preact/$1" },
         { find: /^npm:preact@[^/]*\/(.*)$/, replacement: "preact/$1" },
         { find: /^npm:preact@[^/]*$/, replacement: "preact" },
         { find: /^npm:\/hono@[^/]*\/(.*)$/, replacement: "hono/$1" },
