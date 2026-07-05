@@ -1,6 +1,7 @@
 import { assertEquals } from "@std/assert";
 import { Hono } from "hono";
-import { getSession } from "./session.ts";
+import { setSignedCookie } from "hono/cookie";
+import { getSession, type SessionOptions } from "./session.ts";
 
 const SECRET = "test-secret";
 
@@ -17,8 +18,24 @@ function appWith(
 
 // hono's setSignedCookie emits `name=value.signature; …attrs`; the browser sends
 // back just `name=value.signature`. Strip attrs so a replay looks like a browser.
-function cookiePair(setCookie: string): string {
-  return setCookie.split(";")[0];
+function sessionCookie(res: Response): string {
+  return res.headers.get("set-cookie")!.split(";")[0];
+}
+
+// Sets { x: 1 } on a fresh app and returns the Set-Cookie header, for tests
+// that only inspect cookie attributes.
+async function setCookieHeader(
+  url = "/set",
+  opts?: SessionOptions,
+): Promise<string> {
+  const app = new Hono();
+  app.get("/set", async (c) => {
+    const s = await getSession(c, SECRET, opts);
+    await s.set({ x: 1 });
+    return c.text("ok");
+  });
+  const res = await app.request(url);
+  return res.headers.get("set-cookie")!;
 }
 
 Deno.test("set writes a signed cookie the next request reads back", async () => {
@@ -35,9 +52,7 @@ Deno.test("set writes a signed cookie the next request reads back", async () => 
   });
 
   const login = await request("/login");
-  const cookie = cookiePair(login.headers.get("set-cookie")!);
-
-  const me = await request("/me", cookie);
+  const me = await request("/me", sessionCookie(login));
   assertEquals(await me.json(), { userId: 42 });
 });
 
@@ -66,9 +81,11 @@ Deno.test("a tampered signature decodes to empty data", async () => {
   });
 
   const set = await request("/set");
-  const cookie = cookiePair(set.headers.get("set-cookie")!);
   // Flip a byte in the value so the HMAC no longer verifies.
-  const tampered = cookie.replace(/.$/, (ch) => (ch === "A" ? "B" : "A"));
+  const tampered = sessionCookie(set).replace(
+    /.$/,
+    (ch) => (ch === "A" ? "B" : "A"),
+  );
 
   const res = await request("/me", tampered);
   assertEquals(await res.json(), {});
@@ -89,9 +106,39 @@ Deno.test("set merges into existing data across requests", async () => {
   });
 
   const a = await request("/a");
-  const res = await request("/b", cookiePair(a.headers.get("set-cookie")!));
+  const res = await request("/b", sessionCookie(a));
   assertEquals(await res.json(), { a: 1, b: 2 });
 });
+
+Deno.test("set stamps Max-Age (7-day default)", async () => {
+  const setCookie = (await setCookieHeader()).toLowerCase();
+  assertEquals(setCookie.includes(`max-age=${60 * 60 * 24 * 7}`), true);
+});
+
+// Crafts validly-signed cookies directly so we can control `exp` without
+// faking the clock.
+for (
+  const [label, payload] of [
+    ["an expired session", { data: { userId: 9 }, exp: Date.now() - 1000 }],
+    ["a pre-exp legacy payload", { userId: 9 }],
+  ] as const
+) {
+  Deno.test(`${label} decodes to empty data`, async () => {
+    const request = appWith((app) => {
+      app.get("/craft", async (c) => {
+        await setSignedCookie(c, "session", JSON.stringify(payload), SECRET);
+        return c.text("ok");
+      });
+      app.get("/me", async (c) => {
+        const s = await getSession(c, SECRET);
+        return c.json(s.data);
+      });
+    });
+    const craft = await request("/craft");
+    const res = await request("/me", sessionCookie(craft));
+    assertEquals(await res.json(), {});
+  });
+}
 
 Deno.test("destroy expires the cookie", async () => {
   const request = appWith((app) => {
@@ -108,39 +155,20 @@ Deno.test("destroy expires the cookie", async () => {
 });
 
 Deno.test("options.name uses a custom cookie name", async () => {
-  const request = appWith((app) => {
-    app.get("/set", async (c) => {
-      const s = await getSession(c, SECRET, { name: "sid" });
-      await s.set({ x: 1 });
-      return c.text("ok");
-    });
-  });
-  const res = await request("/set");
-  assertEquals(res.headers.get("set-cookie")!.startsWith("sid="), true);
+  const setCookie = await setCookieHeader("/set", { name: "sid" });
+  assertEquals(setCookie.startsWith("sid="), true);
 });
 
 for (const host of ["localhost", "127.0.0.1"]) {
   Deno.test(`secure is omitted on ${host} so the cookie survives HTTP dev`, async () => {
-    const app = new Hono();
-    app.get("/set", async (c) => {
-      const s = await getSession(c, SECRET);
-      await s.set({ x: 1 });
-      return c.text("ok");
-    });
-    const res = await app.request(`http://${host}/set`);
-    const setCookie = res.headers.get("set-cookie")!.toLowerCase();
+    const setCookie = (await setCookieHeader(`http://${host}/set`))
+      .toLowerCase();
     assertEquals(setCookie.includes("secure"), false);
   });
 }
 
 Deno.test("secure is set on a non-localhost host", async () => {
-  const app = new Hono();
-  app.get("/set", async (c) => {
-    const s = await getSession(c, SECRET);
-    await s.set({ x: 1 });
-    return c.text("ok");
-  });
-  const res = await app.request("https://app.example.com/set");
-  const setCookie = res.headers.get("set-cookie")!.toLowerCase();
+  const setCookie = (await setCookieHeader("https://app.example.com/set"))
+    .toLowerCase();
   assertEquals(setCookie.includes("secure"), true);
 });

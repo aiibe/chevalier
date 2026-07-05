@@ -2,11 +2,6 @@
 
 ## High
 
-- **Sessions never expire.** `getSession` sets no `maxAge` and the payload
-  embeds no timestamp, so a captured cookie verifies forever. Embed an `exp`
-  checked on read (or default a `maxAge`); consider `secret: string | string[]`
-  for rotation.
-
 - **Island props serialization fails silently.** Bare `JSON.stringify` in
   `collectProps`/`buildBoot` mangles `Date`, drops `undefined`/functions, and
   empties `Map`/`Set` with no warning — the symptom is a subtly wrong island
@@ -21,6 +16,10 @@
   from 0.0.x toward 0.1/1.0 with a changelog.
 
 ## Nice-to-have
+
+- **No session-secret rotation.** `getSession` takes one secret, so rotating it
+  logs everyone out. Accept `string | string[]` (sign with the first, verify
+  against all) — but only if someone actually hits this.
 
 - **No observability guidance.** Logging is deliberately bring-your-own Hono
   middleware, but the docs should show the root `_middleware.ts` logger pattern

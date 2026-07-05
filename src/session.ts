@@ -7,24 +7,30 @@ import type { CookieOptions } from "hono/utils/cookie";
 import { deleteCookie, getSignedCookie, setSignedCookie } from "hono/cookie";
 
 const DEFAULT_NAME = "session";
+const DEFAULT_MAX_AGE = 60 * 60 * 24 * 7; // 7 days, in seconds
 
 // `secure` is added per-request in getSession, not here — see there.
 const DEFAULT_COOKIE: CookieOptions = {
   httpOnly: true,
   sameSite: "Lax",
   path: "/",
+  maxAge: DEFAULT_MAX_AGE,
 };
 
 export interface SessionOptions {
   /** Cookie name. Default "session". */
   name?: string;
-  /** Attributes merged over the defaults; wins over the auto `secure`. */
+  /**
+   * Attributes merged over the defaults; wins over the auto `secure`.
+   * `maxAge` (default 7 days) also sets the signed expiry checked on read.
+   */
   cookie?: CookieOptions;
 }
 
 /**
  * A session backed by one signed cookie. `data` is the decoded payload (`{}` if
- * absent or tampered); `set` re-signs and writes it; `destroy` clears it.
+ * absent, tampered, or expired); `set` re-signs and writes it; `destroy` clears
+ * it. Each `set` restamps the expiry, so an active session keeps rolling.
  */
 export interface Session<T extends Record<string, unknown>> {
   readonly data: Partial<T>;
@@ -58,15 +64,21 @@ export async function getSession<T extends Record<string, unknown>>(
     ...DEFAULT_COOKIE,
     ...options.cookie,
   };
+  // Also stamps the signed exp, so a captured cookie expires server-side.
+  const maxAge = cookieOpts.maxAge ?? DEFAULT_MAX_AGE;
 
   // getSignedCookie returns false on a bad signature, undefined when absent.
   const raw = await getSignedCookie(c, secret, name);
   let data: Partial<T> = {};
   if (raw) {
     try {
-      data = JSON.parse(raw) as Partial<T>;
+      const parsed = JSON.parse(raw) as { data?: Partial<T>; exp?: number };
+      // Missing exp reads as expired — deliberately kills pre-exp cookies.
+      if (typeof parsed.exp === "number" && Date.now() < parsed.exp) {
+        data = parsed.data ?? {};
+      }
     } catch {
-      data = {};
+      // malformed payload — data stays empty
     }
   }
 
@@ -77,7 +89,14 @@ export async function getSession<T extends Record<string, unknown>>(
     },
     async set(values) {
       data = { ...data, ...values };
-      await setSignedCookie(c, name, JSON.stringify(data), secret, cookieOpts);
+      const payload = { data, exp: Date.now() + maxAge * 1000 };
+      await setSignedCookie(
+        c,
+        name,
+        JSON.stringify(payload),
+        secret,
+        cookieOpts,
+      );
     },
     destroy() {
       data = {};
