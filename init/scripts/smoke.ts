@@ -94,14 +94,12 @@ try {
     cfg.minimumDependencyAge = 0;
     await Deno.writeTextFile(denoJsonPath, JSON.stringify(cfg, null, 2) + "\n");
     const map = cfg.imports as Record<string, string>;
-    for (
-      const spec of [
-        "chevalier",
-        "chevalier/client",
-        "chevalier/registry",
-        "chevalier/static",
-      ]
-    ) {
+    // Derive the subpaths from the template's own chevalier* pins so this can't
+    // drift when an export is added to or trimmed from the import map.
+    const specs = Object.keys(map).filter((k) =>
+      k === "chevalier" || k.startsWith("chevalier/")
+    );
+    for (const spec of specs) {
       // Explicit try/catch + Deno.exit: `deno eval` exits 0 even on an uncaught
       // top-level import rejection, so a bare `await import(...)` false-passes.
       // cwd: APP so the app's deno.json (only the jsr: pin) governs resolution;
@@ -137,6 +135,12 @@ try {
       .replace(
         /"chevalier\/static":\s*"[^"]*"/,
         `"chevalier/static": "${CORE_SRC}/static.ts"`,
+      )
+      // vite.config.ts imports this; without a local repoint it falls through
+      // to JSR and fails whenever the template pin lags the just-published core.
+      .replace(
+        /"chevalier\/vite":\s*"[^"]*"/,
+        `"chevalier/vite": "${CORE_SRC}/vite-config.ts"`,
       );
     if (patched === denoJson) {
       fail("import-map repoint matched nothing — template shape changed");

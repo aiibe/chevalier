@@ -9,6 +9,7 @@
   "imports": {
     "chevalier": "jsr:@chevalier/core@{{CORE}}",
     "chevalier/client": "jsr:@chevalier/core@{{CORE}}/client",
+    "chevalier/static": "jsr:@chevalier/core@{{CORE}}/static",
     "chevalier/vite": "jsr:@chevalier/core@{{CORE}}/vite",
     "hono": "npm:hono@^4.6.0",
     "preact": "npm:preact@^10.24.0",
