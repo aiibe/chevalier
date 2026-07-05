@@ -159,6 +159,18 @@ export function createApp(options: CreateAppOptions): Hono {
     styles,
   });
 
+  // Canonicalize before anything matches: `/about/` 308s to `/about` (308
+  // keeps the method, so a form POST survives). Routes register slash-less,
+  // so the slashed form would otherwise fall into the wildcard and 404.
+  app.use("*", async (c, next) => {
+    const url = new URL(c.req.url);
+    if (url.pathname !== "/" && url.pathname.endsWith("/")) {
+      const path = url.pathname.replace(/\/+$/, "") || "/";
+      return c.redirect(path + url.search, 308);
+    }
+    await next();
+  });
+
   // Mount before routes: Hono runs use() in registration order, and
   // createMiddleware sorts shallowest-first, so guards compose outer-to-inner.
   // Hono's `/admin/*` matches `/admin` itself too, so one wildcard covers the
@@ -188,8 +200,10 @@ export function createApp(options: CreateAppOptions): Hono {
     mod: RouteModule,
     c: Context,
   ): Promise<Response> => {
-    // Same-path non-GET → the page's action (form POST); else 404.
-    if (c.req.method !== "GET") {
+    // Same-path non-GET → the page's action (form POST); else 404. HEAD must
+    // render: Hono matched it as GET and strips the body, but c.req.method
+    // still reads HEAD — without this a monitor's HEAD would hit the action.
+    if (c.req.method !== "GET" && c.req.method !== "HEAD") {
       const action = mod.action as PageAction | undefined;
       if (!action) return c.notFound();
       // Actions mutate: reject cross-origin form posts (CSRF).

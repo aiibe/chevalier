@@ -53,6 +53,48 @@ Deno.test("page route is GET-only — POST falls through to 404", async () => {
   assertEquals((await app.request("/", { method: "POST" })).status, 404);
 });
 
+Deno.test("HEAD on a page renders (empty body) and never runs the action", async () => {
+  let actionRan = false;
+  const app = createApp({
+    routes: {
+      "/app/routes/index.tsx": () =>
+        Promise.resolve({
+          action: (c: Context) => {
+            actionRan = true;
+            return c.redirect("/", 303);
+          },
+          default: () => h("div", null, "home"),
+        }),
+    },
+  });
+
+  const res = await app.request("/", { method: "HEAD" });
+  assertEquals(res.status, 200);
+  assertEquals(await res.text(), "");
+  assertEquals(actionRan, false);
+});
+
+Deno.test("trailing slash 308s to the canonical path, query intact", async () => {
+  const app = createApp({
+    routes: {
+      "/app/routes/index.tsx": () =>
+        Promise.resolve({ default: () => h("div", null, "home") }),
+      "/app/routes/about.tsx": () =>
+        Promise.resolve({ default: () => h("div", null, "about") }),
+    },
+  });
+
+  const res = await app.request("/about/?q=1", { redirect: "manual" });
+  assertEquals(res.status, 308);
+  assertEquals(res.headers.get("location"), "/about?q=1");
+
+  // Root is already canonical; extra slashes collapse to it.
+  assertEquals((await app.request("/")).status, 200);
+  const slashes = await app.request("///", { redirect: "manual" });
+  assertEquals(slashes.status, 308);
+  assertEquals(slashes.headers.get("location"), "/");
+});
+
 Deno.test("page action runs on same-path POST and returns its Response", async () => {
   const app = createApp({
     routes: {

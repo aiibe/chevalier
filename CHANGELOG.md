@@ -36,7 +36,9 @@ can't be serialized now fails at render with a clear error instead of a broken
 page in the browser; an oversized action body is rejected; and an error thrown
 in a loader, action, or page shows up in your server logs. Tailwind and
 stylesheet paths are set in `chevalierConfig` alongside the rest of your app
-config.
+config. A HEAD request to a page now renders it (body stripped) instead of
+404ing or reaching the action, and a trailing-slash URL 308-redirects to its
+canonical path instead of 404ing.
 
 ## 0.0.11
 
