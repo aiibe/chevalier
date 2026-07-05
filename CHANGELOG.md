@@ -1,12 +1,14 @@
 # Changelog
 
-All notable changes to `@chevalier/core` are recorded here. The project aims to
-follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html) once it
+All notable changes to Chevalier are recorded here — both the published
+`@chevalier/core` package and the `@chevalier/init` scaffolder. The project aims
+to follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html) once it
 reaches `0.1.0` (see [Stability](#stability)).
 
-This changelog tracks the published `@chevalier/core` package. The
-`@chevalier/init` scaffolder releases on its own `init-vX.Y.Z` tag track and is
-not versioned here.
+Entries are versioned against `@chevalier/core`. The scaffolder embeds a working
+app that uses `@chevalier/core` and releases on its own `init-vX.Y.Z` tag track;
+scaffold-facing changes are noted under the release that carried them, prefixed
+_Scaffold:_.
 
 ## Stability
 
@@ -40,6 +42,10 @@ config. A HEAD request to a page now renders it (body stripped) instead of
 404ing or reaching the action, and a trailing-slash URL 308-redirects to its
 canonical path instead of 404ing.
 
+_Scaffold:_ the generated app ships a leaner import map — only the entries it
+uses — and picks up the above: loader data typed through to pages, Tailwind and
+styles in `chevalierConfig`, and errors logged server-side.
+
 ## 0.0.11
 
 Fixes Preact hooks (`useState` and friends) failing to resolve in an island.
@@ -53,6 +59,9 @@ move the shell markup into `_app.tsx` and per-page `<head>` content into
 `PageHead`. Also fixes a page that could break when an island's import path
 contained `</script>`.
 
+_Scaffold:_ the generated app shows the new layout model — an `_app.tsx` shell,
+a nesting `_layout.tsx`, and a page setting its own `<head>` with `PageHead`.
+
 ## 0.0.9
 
 Drop a `_layout.tsx` or `_middleware.ts` into any routes subdirectory and it
@@ -62,10 +71,17 @@ handle a form POST from a page by adding `export const action`. If island
 hot-reload silently stops working, Chevalier now warns you once that
 `@prefresh/vite` is missing.
 
+_Scaffold:_ the template gains a per-directory `_middleware.ts` route guard and
+a page form action (`export const action`), showing both conventions out of the
+box.
+
 ## 0.0.8
 
 Adds Tailwind v4 support — utility classes work in your pages and islands, in
 dev and production.
+
+_Scaffold:_ scaffolds Tailwind v4 wired for dev and production — utility classes
+work in your pages and islands out of the box.
 
 ## 0.0.7
 
@@ -79,6 +95,11 @@ Drop files in a `public/` directory and serve them with `serveStatic`; built
 hand-written server file — `defineApp` is the single entry point. Runs on Vite
 8. Fixes islands not resolving when running from the published package.
 
+_Scaffold:_ a refreshed scaffold — a PNG favicon, no server file to maintain, a
+`public/` directory for static files, and a README section on deploying to Deno
+Deploy. The `-Ar` flag in the scaffold command makes Deno always fetch the
+latest version.
+
 ## 0.0.5
 
 Editing a route now reloads only the browser tabs viewing that route, instead of
@@ -91,8 +112,15 @@ inside other islands — adding or removing one during dev updates correctly. Ne
 apps come with a production server. Fixes dynamic routes like `[slug]` not
 matching.
 
+_Scaffold:_ scaffolds a production server alongside the dev setup.
+
 ## 0.0.3
 
 Initial published release: file-based routing, per-page islands with zero client
 JS by default, island hydration, and a CSP nonce on the inline boot script,
 alongside the `@chevalier/init` scaffolder.
+
+_Scaffold:_ initial scaffolder release —
+`deno run -Ar jsr:@chevalier/init my-app` generates a working Chevalier app (a
+page, an island, a static page, a form, and an `/api` handler), ready to
+`deno task dev`.
