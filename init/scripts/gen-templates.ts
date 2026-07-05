@@ -27,6 +27,9 @@ const MANIFEST: ReadonlyArray<readonly [string, string, boolean?]> = [
   ["app/routes/about.tsx", "app/routes/about.tsx"],
   ["app/routes/hello/[name].tsx", "app/routes/hello/[name].tsx"],
   ["app/routes/guestbook.tsx", "app/routes/guestbook.tsx"],
+  ["app/routes/login.tsx", "app/routes/login.tsx"],
+  ["app/routes/admin/index.tsx", "app/routes/admin/index.tsx"],
+  ["app/routes/admin/_middleware.ts", "app/routes/admin/_middleware.ts"],
   ["app/routes/api.ts", "app/routes/api.ts"],
   ["app/styles.css", "app/styles.css"],
   ["app/islands/counter.tsx", "app/islands/counter.tsx"],
@@ -37,6 +40,35 @@ const MANIFEST: ReadonlyArray<readonly [string, string, boolean?]> = [
 // hand-managed template escapes, which is what the old inline templates.ts had.
 function jsString(s: string): string {
   return JSON.stringify(s);
+}
+
+// Every source path under templates/, forward-slash, templates-root-relative.
+async function walkTemplates(dir = TEMPLATES, prefix = ""): Promise<string[]> {
+  const out: string[] = [];
+  for await (const e of Deno.readDir(dir)) {
+    if (e.name === ".DS_Store") continue;
+    const rel = prefix ? `${prefix}/${e.name}` : e.name;
+    if (e.isDirectory) {
+      out.push(...await walkTemplates(new URL(`${e.name}/`, dir), rel));
+    } else {
+      out.push(rel);
+    }
+  }
+  return out;
+}
+
+// MANIFEST is hand-listed, so an unlisted file silently never ships (the /admin 404).
+async function assertManifestCovers(): Promise<void> {
+  const listed = new Set(MANIFEST.map(([source]) => source));
+  const missing = (await walkTemplates()).filter((f) => !listed.has(f)).sort();
+  if (missing.length) {
+    console.error(
+      "MANIFEST is missing files under templates/:\n" +
+        missing.map((f) => `  - ${f}`).join("\n") +
+        "\nAdd them to MANIFEST in scripts/gen-templates.ts.",
+    );
+    Deno.exit(1);
+  }
 }
 
 async function render(): Promise<string> {
@@ -105,6 +137,7 @@ async function fmt(source: string): Promise<string> {
 }
 
 const check = Deno.args.includes("--check");
+await assertManifestCovers();
 const generated = await fmt(await render());
 
 if (check) {

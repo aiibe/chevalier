@@ -254,6 +254,45 @@ try {
         fail("/guestbook did not persist posted entry");
       } else ok("/guestbook shows posted entry after redirect");
 
+      // Guarded /admin with no session → _middleware redirects to /login.
+      const guarded = await fetch(`${BASE}/admin`, { redirect: "manual" });
+      await guarded.body?.cancel();
+      if (
+        guarded.status !== 302 ||
+        !guarded.headers.get("location")?.endsWith("/login")
+      ) {
+        fail(
+          `/admin (no session) did not redirect to /login (${guarded.status})`,
+        );
+      } else ok("/admin (no session) → redirect to /login");
+
+      // POST /login sets a session cookie, then 303s into the guarded area.
+      const signIn = await fetch(`${BASE}/login`, {
+        method: "POST",
+        redirect: "manual",
+      });
+      await signIn.body?.cancel();
+      const cookie = signIn.headers.get("set-cookie")?.split(";")[0];
+      if (
+        signIn.status !== 303 ||
+        !signIn.headers.get("location")?.endsWith("/admin")
+      ) {
+        fail(`POST /login not a 303 to /admin (${signIn.status})`);
+      } else if (!cookie) {
+        fail("POST /login set no session cookie");
+      } else ok("POST /login → 303 to /admin + session cookie");
+
+      // Re-GET /admin carrying the cookie → guard passes, page renders.
+      const admin = cookie
+        ? await fetch(`${BASE}/admin`, { headers: { cookie } })
+        : undefined;
+      const adminBody = admin ? await admin.text() : "";
+      if (admin?.status !== 200) {
+        fail(`/admin (with session) not 200 (${admin?.status})`);
+      } else if (!adminBody.includes(">Admin</h1>")) {
+        fail("/admin (with session) missing heading");
+      } else ok("/admin (with session) renders");
+
       const notFound = await fetch(`${BASE}/does-not-exist`);
       await notFound.body?.cancel();
       if (notFound.status !== 404) {
