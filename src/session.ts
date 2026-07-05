@@ -48,12 +48,18 @@ export interface Session<T extends Record<string, unknown>> {
  * if (!session.data.userId) return c.redirect("/login");
  * await session.set({ userId });
  * ```
+ *
+ * Pass an array to rotate the secret without logging everyone out: cookies are
+ * signed with the first and verified against all, so retire an old secret by
+ * dropping it from the tail once its cookies have aged out.
  */
 export async function getSession<T extends Record<string, unknown>>(
   c: Context,
-  secret: string,
+  secret: string | string[],
   options: SessionOptions = {},
 ): Promise<Session<T>> {
+  const secrets = typeof secret === "string" ? [secret] : secret;
+  const signingSecret = secrets[0];
   const name = options.name ?? DEFAULT_NAME;
   // Secure off on local dev hosts so an HTTP cookie isn't dropped; behind a proxy
   // that terminates TLS on a local host, override with { cookie: { secure: true } }.
@@ -67,8 +73,13 @@ export async function getSession<T extends Record<string, unknown>>(
   // Also stamps the signed exp, so a captured cookie expires server-side.
   const maxAge = cookieOpts.maxAge ?? DEFAULT_MAX_AGE;
 
-  // getSignedCookie returns false on a bad signature, undefined when absent.
-  const raw = await getSignedCookie(c, secret, name);
+  // getSignedCookie returns false on a bad signature, undefined when absent;
+  // loop stops on the first secret that verifies (rotation — see doc-comment).
+  let raw: string | undefined | false;
+  for (const s of secrets) {
+    raw = await getSignedCookie(c, s, name);
+    if (raw) break;
+  }
   let data: Partial<T> = {};
   if (raw) {
     try {
@@ -94,7 +105,7 @@ export async function getSession<T extends Record<string, unknown>>(
         c,
         name,
         JSON.stringify(payload),
-        secret,
+        signingSecret,
         cookieOpts,
       );
     },

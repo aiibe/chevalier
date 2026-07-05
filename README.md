@@ -203,7 +203,9 @@ stops verifying too — and each `set` restamps it, so an active session keeps
 rolling. Pass `{ name }` to rename the cookie or `{ cookie }` to override its
 attributes — e.g. `{ cookie: { secure: true } }` behind a TLS-terminating proxy,
 or `{ cookie: { maxAge } }` for a different lifetime. Set `SESSION_SECRET` to a
-long random string.
+long random string. To rotate it without logging everyone out, pass an array
+with the new secret first — `getSession(c, [newSecret, oldSecret])` — then drop
+the old one once its cookies have aged out.
 
 ### Middleware
 

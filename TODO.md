@@ -8,10 +8,6 @@
 
 ## Nice-to-have
 
-- **No session-secret rotation.** `getSession` takes one secret, so rotating it
-  logs everyone out. Accept `string | string[]` (sign with the first, verify
-  against all) — but only if someone actually hits this.
-
 - **Scaffold import map still pins three `chevalier` subpaths.** Trimmed from
   six to `chevalier` + `client`/`static`/`vite` (dropped unused `registry`/
   `testing` and the leaky `@prefresh/core`/`@prefresh/utils` peers, which

@@ -154,6 +154,47 @@ Deno.test("destroy expires the cookie", async () => {
   assertEquals(setCookie.toLowerCase().includes("max-age=0"), true);
 });
 
+Deno.test("a cookie signed with a rotated-out secret still verifies", async () => {
+  const OLD = "old-secret";
+  const NEW = "new-secret";
+  const request = appWith((app) => {
+    app.get("/login", async (c) => {
+      const s = await getSession<{ userId: number }>(c, OLD);
+      await s.set({ userId: 42 });
+      return c.text("ok");
+    });
+    // Reads with NEW first, OLD as fallback.
+    app.get("/me", async (c) => {
+      const s = await getSession<{ userId: number }>(c, [NEW, OLD]);
+      return c.json(s.data);
+    });
+  });
+
+  const login = await request("/login");
+  const me = await request("/me", sessionCookie(login));
+  assertEquals(await me.json(), { userId: 42 });
+});
+
+Deno.test("an array secret signs with the first entry", async () => {
+  const NEW = "new-secret";
+  const request = appWith((app) => {
+    app.get("/login", async (c) => {
+      const s = await getSession<{ userId: number }>(c, [NEW, "old-secret"]);
+      await s.set({ userId: 7 });
+      return c.text("ok");
+    });
+    // Only the first (signing) secret should read it back.
+    app.get("/me", async (c) => {
+      const s = await getSession<{ userId: number }>(c, NEW);
+      return c.json(s.data);
+    });
+  });
+
+  const login = await request("/login");
+  const me = await request("/me", sessionCookie(login));
+  assertEquals(await me.json(), { userId: 7 });
+});
+
 Deno.test("options.name uses a custom cookie name", async () => {
   const setCookie = await setCookieHeader("/set", { name: "sid" });
   assertEquals(setCookie.startsWith("sid="), true);
