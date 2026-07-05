@@ -230,6 +230,37 @@ but not siblings. Nest directories to layer guards: they compose outer-to-inner,
 so `routes/_middleware.ts` wraps `routes/admin/_middleware.ts`. One guard per
 directory — compose multiple concerns inside the handler.
 
+### Observability
+
+Logging and metrics are bring-your-own — Chevalier ships no logger. To log every
+request, put a `_middleware.ts` at the root of `app/routes`. Drop in Hono's
+[`logger`](https://hono.dev/docs/middleware/builtin/logger) for a quick start, or
+write your own for structured lines:
+
+```ts
+// app/routes/_middleware.ts  →  logs every request
+import type { PageMiddleware } from "@chevalier/core";
+
+const log: PageMiddleware = async (c, next) => {
+  const start = performance.now();
+  await next();
+  const ms = (performance.now() - start).toFixed(1);
+  console.log(`${c.req.method} ${c.req.path} ${c.res.status} ${ms}ms`);
+};
+
+export default log;
+```
+
+For a health check a load balancer or uptime probe can hit, add a handler that
+returns `200`:
+
+```ts
+// app/routes/health.ts  →  GET /health returns { ok: true }
+import { Hono } from "hono";
+
+export const app = new Hono().get("/", (c) => c.json({ ok: true }));
+```
+
 ## Handlers
 
 Any route file can `export const app`, a Hono sub-app that serves any HTTP

@@ -12,10 +12,6 @@
   logs everyone out. Accept `string | string[]` (sign with the first, verify
   against all) — but only if someone actually hits this.
 
-- **No observability guidance.** Logging is deliberately bring-your-own Hono
-  middleware, but the docs should show the root `_middleware.ts` logger pattern
-  and a health-check handler example.
-
 - **`init/templates/` is a hand-kept parallel of `examples/basic`.** The
   embed/drift-guard is done (`init/templates/` real files → `templates.gen.ts`
   via `deno task gen`, checked in CI by `gen:check`). But the two trees are
