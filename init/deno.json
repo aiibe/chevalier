@@ -4,7 +4,7 @@
   "license": "MIT",
   "exports": "./mod.ts",
   "publish": {
-    "include": ["mod.ts", "templates.gen.ts", "README.md"]
+    "include": ["mod.ts", "templates.gen.ts", "README.md", "CHANGELOG.md"]
   },
   "imports": {
     "@std/encoding/base64": "jsr:@std/encoding@^1/base64"

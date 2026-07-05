@@ -429,5 +429,10 @@ Chevalier is inspired by these. Reach for them if they fit better.
 
 ## Documentation
 
-Full docs are on the way. For a complete working app in the meantime, see
-[`examples/basic`](./examples/basic).
+A dedicated docs site is on the way. Until then, this README is the reference,
+and [`examples/basic`](./examples/basic) is a complete working app to read.
+
+Chevalier is pre-1.0; the API can change between releases. Every release is
+recorded in the [changelog](./CHANGELOG.md), which also states the
+[stability policy](./CHANGELOG.md#stability) and the path from `0.0.x` toward
+`0.1` and `1.0`. Pin an exact version and read the entry before upgrading.

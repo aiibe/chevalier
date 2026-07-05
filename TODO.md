@@ -2,20 +2,12 @@
 
 ## High
 
-- **No docs site.** The README ends at "full docs are on the way"; docs are part
-  of production readiness. Ship them, plus a stated stability policy and a path
-  from 0.0.x toward 0.1/1.0 with a changelog.
+- **No docs site.** `CHANGELOG.md` now carries the stability policy and the
+  0.0.x → 0.1/1.0 path, and the README points at both. Still missing: an actual
+  docs site. Plan is to dogfood — build it _as_ a Chevalier app (under `docs/`
+  or `examples/`) so the site doubles as proof the framework ships real content.
 
 ## Nice-to-have
-
-- **`init/templates/` is a hand-kept parallel of `examples/basic`.** The
-  embed/drift-guard is done (`init/templates/` real files → `templates.gen.ts`
-  via `deno task gen`, checked in CI by `gen:check`). But the two trees are
-  still maintained by hand — a change to the example must be mirrored into the
-  template manually (as the loader/quote examples just were). To fully close the
-  gap, generate `templates/` _from_ `examples/basic` with declared transforms
-  (local-src imports → `jsr:@chevalier/core`, drop the clock demo) rather than
-  keeping a second copy.
 
 - **No Deno Deploy build preset.** Chevalier requires a manual `deno task build`
   before deploy since Deploy doesn't run Vite. Automating the build-then-deploy
