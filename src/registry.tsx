@@ -86,10 +86,69 @@ function collectComponent(id: string): number {
   return idx;
 }
 
+function propsError(id: string, path: string, problem: string): Error {
+  return new Error(
+    `Island "${id}" prop \`${path}\` won't survive serialization to the client: ${problem}. ` +
+      `Island props must be JSON-safe: strings, finite numbers, booleans, null, plain objects/arrays.`,
+  );
+}
+
+// Throw unless `v` survives a JSON round-trip unchanged — bare stringify would
+// mangle it silently and the island hydrates subtly wrong.
+function assertRoundTrips(
+  v: unknown,
+  id: string,
+  path: string,
+  seen: Set<object>,
+): void {
+  switch (typeof v) {
+    case "string":
+    case "boolean":
+      return;
+    case "number":
+      if (Number.isFinite(v)) return;
+      throw propsError(id, path, `${v} serializes to null`);
+    case "bigint":
+    case "function":
+    case "symbol":
+      throw propsError(id, path, `a ${typeof v} cannot be serialized`);
+  }
+  if (v === null) return;
+  const obj = v as object;
+  if (seen.has(obj)) throw propsError(id, path, "circular reference");
+  seen.add(obj);
+  if (Array.isArray(obj)) {
+    obj.forEach((item, i) => {
+      if (item === undefined) {
+        throw propsError(id, `${path}[${i}]`, "undefined serializes to null");
+      }
+      assertRoundTrips(item, id, `${path}[${i}]`, seen);
+    });
+  } else {
+    const proto = Object.getPrototypeOf(obj);
+    if (proto !== Object.prototype && proto !== null) {
+      const name = obj.constructor?.name ?? "object";
+      throw propsError(
+        id,
+        path,
+        `a ${name} does not survive JSON (e.g. Date → string, Map/Set → {})`,
+      );
+    }
+    for (const [k, val] of Object.entries(obj)) {
+      // A dropped undefined key reads back as undefined on the client — fine.
+      if (val === undefined) continue;
+      assertRoundTrips(val, id, path ? `${path}.${k}` : k, seen);
+    }
+  }
+  seen.delete(obj);
+}
+
 /** props → its index in the deduped props array; identical props share a slot. */
-function collectProps(props: Record<string, unknown>): number {
+function collectProps(id: string, props: Record<string, unknown>): number {
   if (!currentCollector) return 0;
   const rest = stripChildren(props);
+  // Validate before dedup: the key is lossy, so a bad prop could alias a clean one.
+  assertRoundTrips(rest, id, "", new Set());
   const key = JSON.stringify(rest);
   let idx = currentCollector.propsDedup.get(key);
   if (idx === undefined) {
@@ -123,7 +182,7 @@ export function island<P extends Record<string, unknown>>(
     }
     // Rendering is the collection pass — record component + props indices.
     const c = collectComponent(id);
-    const p = collectProps(props as Record<string, unknown>);
+    const p = collectProps(id, props as Record<string, unknown>);
     return h(
       Fragment,
       null,

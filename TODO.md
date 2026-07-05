@@ -2,11 +2,6 @@
 
 ## High
 
-- **Island props serialization fails silently.** Bare `JSON.stringify` in
-  `collectProps`/`buildBoot` mangles `Date`, drops `undefined`/functions, and
-  empties `Map`/`Set` with no warning — the symptom is a subtly wrong island
-  after hydration. Warn or throw when a prop won't round-trip.
-
 - **No docs site.** The README ends at "full docs are on the way"; docs are part
   of production readiness. Ship them, plus a stated stability policy and a path
   from 0.0.x toward 0.1/1.0 with a changelog.
