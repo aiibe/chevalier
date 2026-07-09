@@ -26,19 +26,20 @@ The `0.1` line is the public surface: the `deno.json` exports, the `app/`
 conventions (routes, `_app`/`_layout`/`_404`/`_error`, `_middleware`), and the
 loader/action/session contracts.
 
-## Unreleased
+## 0.2.0
 
-_Scaffold (init 0.1.2):_ the generated app now includes a guarded `/admin`
-example — a per-directory `_middleware.ts` that redirects to `/login` without a
-session, a `/login` page that sets one, and an admin page that reads it and
-signs out. The template generator also fails if any file under `templates/` is
-left out of its manifest, so a scaffolded route can no longer silently go
-missing.
+**Breaking.** `chevalierConfig()` now returns an async config factory. If your
+`vite.config.ts` passes `chevalierConfig()` straight to `defineConfig` — the
+scaffold default — nothing changes. If you call the factory yourself, `await`
+its result: `const base = await chevalierConfig()(env)`. The factory turned
+async because island Fast Refresh is now `@prefresh/vite`'s own plugins wired
+into the Vite config and scoped to `islands/` through prefresh's include filter,
+rather than a hand-rolled transform, and prefresh v3's plugin factory is itself
+async. Requires `@prefresh/vite@^3`.
 
-_Scaffold (init 0.1.1):_ fixes a scaffold that pinned `@chevalier/core@^0.0.11`
-(so a fresh app pulled a pre-`0.1` core) and dropped the `chevalier/static`
-import needed by the production server. New apps now pin `^0.1.0` and boot
-`deno task start`.
+_Scaffold (init 0.1.3):_ new apps pin `@chevalier/core@^0.2.0` and
+`@prefresh/vite@^3.0.1`, and add the `chevalier/static` import the production
+server needs.
 
 ## 0.1.0
 
