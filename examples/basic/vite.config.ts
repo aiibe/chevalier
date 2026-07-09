@@ -8,8 +8,8 @@ const fromHere = (p: string) => `${import.meta.dirname}/${p}`;
 
 // Same chevalierConfig() the template uses, but aliasing `chevalier` to local
 // ../../src (not the jsr: pin) so the example dogfoods the checkout.
-export default defineConfig((env) => {
-  const base = chevalierConfig()(env);
+export default defineConfig(async (env) => {
+  const base = await chevalierConfig()(env);
   const baseAlias = base.resolve?.alias as Array<
     { find: string | RegExp; replacement: string }
   >;

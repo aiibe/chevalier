@@ -1,7 +1,7 @@
-// Vite plugin: dev SSR middleware, client/island build inputs, island HMR.
-// Routes/_layout full-reload (server-owned SSR); islands HMR via prefresh.
-// Internals split under src/vite/: middleware, island discovery, prefresh,
-// reload, virtual-module codegen.
+// Vite plugin: dev SSR middleware, client/island build inputs, route reloads.
+// Island HMR is prefresh's own plugins, wired separately in vite-config.ts.
+// Internals split under src/vite/: middleware, island discovery, reload,
+// virtual-module codegen.
 
 import type { Plugin, ViteDevServer } from "vite";
 import { fileURLToPath } from "node:url";
@@ -10,7 +10,7 @@ import { compileRouteMatcher } from "./router.ts";
 import { CLIENT_NAME } from "./manifest.ts";
 import { devMiddleware } from "./vite/middleware.ts";
 import { discoverIslands, inputKey } from "./vite/islands-discovery.ts";
-import { scopedPrefresh } from "./vite/prefresh.ts";
+import { ISLAND_INCLUDE } from "./vite/prefresh.ts";
 import {
   appRel,
   invalidateSsrImporters,
@@ -60,7 +60,6 @@ export function chevalier(options: ChevalierOptions = {}): Plugin[] {
   // Per-island virtual alias → its real source file on disk.
   const islandPrefix = "chevalier-island:";
   const appRootRel = stripLead(opts.appRoot);
-  let serve = true; // gates prefresh to dev
   let isSsrBuild = false; // gates manifest inlining
   let projectRoot = ""; // config.root; locates islands on disk
   // HMR client → its last-reported location.pathname (for route-scoped reloads).
@@ -74,7 +73,6 @@ export function chevalier(options: ChevalierOptions = {}): Plugin[] {
     name: "chevalier",
 
     config(config, env) {
-      serve = env.command === "serve";
       isSsrBuild = env.isSsrBuild === true;
       // Client build only: add each island as a Rollup input so it lands in the
       // manifest, where the SSR app resolves it via resolveIslandUrl.
@@ -115,9 +113,13 @@ export function chevalier(options: ChevalierOptions = {}): Plugin[] {
         // custom (not spa): stop Vite's html/spa fallback from rewriting page
         // URLs to /index.html before our SSR middleware sees them.
         appType: "custom",
-        // Hydration parity with preact-render-to-string SSR output.
-        // Vite 8 transforms JSX via Oxc, not esbuild.
-        oxc: { jsx: { runtime: "automatic", importSource: "preact" } },
+        // Vite 8 transforms JSX via Oxc, not esbuild; match preact-render SSR.
+        oxc: {
+          jsx: { runtime: "automatic", importSource: "preact" },
+          // Scope Oxc's $RefreshReg$ injection to prefresh's wrapper scope, else
+          // it fires in non-islands whose defining prelude never ran.
+          jsxRefreshInclude: ISLAND_INCLUDE,
+        },
         resolve: {
           alias: { "react": "preact/compat", "react-dom": "preact/compat" },
         },
@@ -282,7 +284,7 @@ export function chevalier(options: ChevalierOptions = {}): Plugin[] {
     },
   };
 
-  return [main, scopedPrefresh(opts.appRoot, () => serve)];
+  return [main];
 }
 
 export default chevalier;

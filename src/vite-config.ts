@@ -4,14 +4,15 @@ import type { PluginOption, UserConfig } from "vite";
 import deno from "@deno/vite-plugin";
 import tailwindcss from "@tailwindcss/vite";
 import { chevalier, type ChevalierOptions } from "./vite.ts";
+import { islandPrefresh } from "./vite/prefresh.ts";
 
-type ConfigFn = (env: { isSsrBuild?: boolean }) => UserConfig;
+type ConfigFn = (env: { isSsrBuild?: boolean }) => Promise<UserConfig>;
 
 /** Pass appRoot only to move the app dir; the SSR app is generated. */
 export function chevalierConfig(
   options: ChevalierOptions = {},
 ): ConfigFn {
-  return ({ isSsrBuild }) => ({
+  return async ({ isSsrBuild }) => ({
     resolve: {
       // One Preact instance across SSR + islands is required for hydration.
       dedupe: ["preact", "preact/hooks", "preact-render-to-string", "hono"],
@@ -28,13 +29,21 @@ export function chevalierConfig(
     // Externalized, preact's jsx-runtime subpath collapses to bare preact, which
     // lacks jsxs/jsxDEV; process it in-pipeline instead.
     ssr: { noExternal: true },
-    // Under Deno the esbuild optimizer skips its .vite/deps cache (404s).
-    optimizeDeps: { noDiscovery: true, include: [] },
+    // prefresh force-optimizes @prefresh/core with its OWN bundled preact; optimize
+    // preact here too so both share one instance, else fast-refresh won't re-render.
+    optimizeDeps: {
+      noDiscovery: true,
+      include: ["preact", "preact/hooks", "preact/jsx-runtime"],
+    },
     // chevalier before deno so it claims virtual:chevalier-* before the deno
-    // loader rejects the virtual: scheme. Tailwind is a blessed default; core
-    // owns it so the scaffold config stays a one-liner. Cast: separate
-    // node_modules trees.
-    plugins: [chevalier(options), tailwindcss(), deno()] as PluginOption[],
+    // loader rejects the virtual: scheme. islandPrefresh: island fast-refresh.
+    // Cast: separate node_modules trees.
+    plugins: [
+      chevalier(options),
+      ...await islandPrefresh(),
+      tailwindcss(),
+      deno(),
+    ] as PluginOption[],
     build: isSsrBuild
       ? { outDir: "dist/server" }
       : { outDir: "dist/client", manifest: true },
