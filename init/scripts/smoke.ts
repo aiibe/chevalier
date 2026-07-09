@@ -119,34 +119,27 @@ try {
     }
     ok("published core resolves all export subpaths");
   } else {
-    // Repoint the import map at local core so CI tests the code in the PR
-    // without depending on a publish.
-    const denoJson = await Deno.readTextFile(denoJsonPath);
-    const patched = denoJson
-      .replace(/"chevalier":\s*"[^"]*"/, `"chevalier": "${CORE_SRC}/mod.ts"`)
-      .replace(
-        /"chevalier\/client":\s*"[^"]*"/,
-        `"chevalier/client": "${CORE_SRC}/client.ts"`,
-      )
-      .replace(
-        /"chevalier\/registry":\s*"[^"]*"/,
-        `"chevalier/registry": "${CORE_SRC}/registry.tsx"`,
-      )
-      .replace(
-        /"chevalier\/static":\s*"[^"]*"/,
-        `"chevalier/static": "${CORE_SRC}/static.ts"`,
-      )
-      // vite.config.ts imports this; without a local repoint it falls through
-      // to JSR and fails whenever the template pin lags the just-published core.
-      .replace(
-        /"chevalier\/vite":\s*"[^"]*"/,
-        `"chevalier/vite": "${CORE_SRC}/vite-config.ts"`,
-      );
-    if (patched === denoJson) {
-      fail("import-map repoint matched nothing — template shape changed");
-      throw new Error("repoint failed");
+    // Repoint the import map at local core so CI tests the PR without a publish.
+    // Only specifiers the template declares belong here — core reaches
+    // ./registry.tsx transitively via relative paths, so it needs no repoint.
+    const REPOINTS: ReadonlyArray<readonly [string, string]> = [
+      ["chevalier", `${CORE_SRC}/mod.ts`],
+      ["chevalier/client", `${CORE_SRC}/client.ts`],
+      ["chevalier/static", `${CORE_SRC}/static.ts`],
+      ["chevalier/vite", `${CORE_SRC}/vite-config.ts`],
+    ];
+    let denoJson = await Deno.readTextFile(denoJsonPath);
+    for (const [spec, local] of REPOINTS) {
+      // Assert per specifier: a whole-file diff can't catch one key going stale.
+      const re = new RegExp(`"${spec.replace("/", "\\/")}":\\s*"[^"]*"`);
+      const next = denoJson.replace(re, `"${spec}": "${local}"`);
+      if (next === denoJson) {
+        fail(`import-map repoint missed "${spec}" — template shape changed`);
+        throw new Error("repoint failed");
+      }
+      denoJson = next;
     }
-    await Deno.writeTextFile(denoJsonPath, patched);
+    await Deno.writeTextFile(denoJsonPath, denoJson);
     ok("repointed core to local src");
   }
 
