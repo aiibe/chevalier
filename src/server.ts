@@ -231,10 +231,12 @@ export function createApp(options: CreateAppOptions): Hono {
     }
 
     const Layouts = await loadLayouts(route.path);
+    const props = { params: c.req.param(), ...data };
     const html = renderDoc(
       Layouts,
       Page,
-      { params: c.req.param(), ...data },
+      props,
+      { url: new URL(c.req.url).pathname, path: route.path, data: props },
       readNonce(c),
     );
     return c.html(html);
@@ -265,8 +267,18 @@ export function createApp(options: CreateAppOptions): Hono {
   const NotFound = options.notFound;
   if (NotFound) {
     app.notFound(async (c) => {
-      const Layouts = await loadLayouts(new URL(c.req.url).pathname);
-      return c.html(renderDoc(Layouts, NotFound, {}, readNonce(c)), 404);
+      const url = new URL(c.req.url).pathname;
+      const Layouts = await loadLayouts(url);
+      return c.html(
+        renderDoc(
+          Layouts,
+          NotFound,
+          {},
+          { url, path: undefined, data: {} },
+          readNonce(c),
+        ),
+        404,
+      );
     });
   }
   const ErrorPage = options.error as
@@ -276,9 +288,16 @@ export function createApp(options: CreateAppOptions): Hono {
     app.onError(async (err, c) => {
       // Replacing Hono's default handler loses its logging; keep the operator log.
       console.error(err);
-      const Layouts = await loadLayouts(new URL(c.req.url).pathname);
+      const url = new URL(c.req.url).pathname;
+      const Layouts = await loadLayouts(url);
       return c.html(
-        renderDoc(Layouts, ErrorPage, { error: err }, readNonce(c)),
+        renderDoc(
+          Layouts,
+          ErrorPage,
+          { error: err },
+          { url, path: undefined, data: { error: err } },
+          readNonce(c),
+        ),
         500,
       );
     });

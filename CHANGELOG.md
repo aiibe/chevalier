@@ -26,6 +26,13 @@ The `0.1` line is the public surface: the `deno.json` exports, the `app/`
 conventions (routes, `_app`/`_layout`/`_404`/`_error`, `_middleware`), and the
 loader/action/session contracts.
 
+## 0.2.1
+
+Every `_layout.tsx` and the `_app` shell now receive a `route` prop — the current
+`url`, the matched route `path`, and the page's `data` — so you can highlight the
+active nav link without reaching for the raw request. On a 404 or error render
+`path` is `undefined`, since no route matched.
+
 ## 0.2.0
 
 **Breaking.** `chevalierConfig()` now returns an async config factory. If your

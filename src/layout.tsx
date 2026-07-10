@@ -5,10 +5,22 @@
 import type { VNode } from "preact";
 import { Head } from "./head.tsx";
 
+/** The current route, passed to every layout and the app shell (see render.ts). */
+export interface RouteContext {
+  /** Request path, e.g. "/admin/users" — for active-nav matching. */
+  url: string;
+  /** Matched route pattern, e.g. "/admin/:id"; undefined on a 404/error render. */
+  path: string | undefined;
+  /** The same `{ params, ...loaderData }` object the page receives. */
+  data: Record<string, unknown>;
+}
+
 /** Props for the app shell (_app.tsx) and for body-only _layout.tsx files. */
 export interface LayoutProps {
   /** What this shell/layout wraps: the next layout, or the server-built page body. */
   children: VNode;
+  /** The current route: request path, matched pattern, loader data. */
+  route: RouteContext;
 }
 
 // dangerouslySetInnerHTML is safe: html/boot are the framework's own SSR output,

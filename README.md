@@ -343,14 +343,23 @@ Drop these files in `app/routes/` and Chevalier picks them up — no wiring:
   wrapping the next via `{children}`, all inside the app shell. A route with no
   `_layout.tsx` ancestor renders bare in the shell.
 
+  Every layout (and the `_app` shell) also receives `route` — the current `url`,
+  the matched route `path`, and the page's `data` (its params and loader result)
+  — so you can mark the active nav link:
+
   ```tsx
   // app/routes/_layout.tsx
   import type { LayoutProps } from "chevalier";
 
-  export default function Layout({ children }: LayoutProps) {
+  export default function Layout({ children, route }: LayoutProps) {
     return (
       <>
-        <nav>…</nav>
+        <nav>
+          <a href="/" aria-current={route.url === "/" ? "page" : undefined}>
+            home
+          </a>
+          …
+        </nav>
         {children}
       </>
     );

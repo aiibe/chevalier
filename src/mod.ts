@@ -24,7 +24,7 @@ export type {
 } from "./manifest.ts";
 
 export { App, Layout } from "./layout.tsx";
-export type { LayoutProps } from "./layout.tsx";
+export type { LayoutProps, RouteContext } from "./layout.tsx";
 export { Head, PageHead, Stylesheets, StylesProvider } from "./head.tsx";
 
 export { hydrateIslands } from "./client.ts";

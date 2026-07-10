@@ -25,6 +25,13 @@ Deno.test("dynamic segment reaches the page as params", async () => {
   assertStringIncludes(await res.text(), "hi world");
 });
 
+Deno.test("layout receives route context: url, matched path, params", async () => {
+  const html = await (await app.request("/hello/world")).text();
+  assertStringIncludes(html, 'data-route-url="/hello/world"');
+  assertStringIncludes(html, 'data-route-path="/hello/:name"');
+  assertStringIncludes(html, "&quot;name&quot;:&quot;world&quot;");
+});
+
 Deno.test("action runs on same-path POST", async () => {
   const res = await app.request("/submit", {
     method: "POST",

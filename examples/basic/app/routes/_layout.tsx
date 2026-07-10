@@ -3,14 +3,29 @@
 
 import type { LayoutProps } from "chevalier";
 
-export default function Layout({ children }: LayoutProps) {
+const links = [
+  ["/", "home"],
+  ["/about", "about"],
+  ["/guestbook", "guestbook"],
+  ["/admin", "admin"],
+];
+
+export default function Layout({ children, route }: LayoutProps) {
   return (
     <>
       <nav class="mb-8 flex gap-3 text-sm text-gray-500">
-        <a class="hover:text-gray-900" href="/">home</a>
-        <a class="hover:text-gray-900" href="/about">about</a>
-        <a class="hover:text-gray-900" href="/guestbook">guestbook</a>
-        <a class="hover:text-gray-900" href="/admin">admin</a>
+        {links.map(([href, label]) => (
+          <a
+            key={href}
+            href={href}
+            aria-current={route.url === href ? "page" : undefined}
+            class={route.url === href
+              ? "text-gray-900 font-medium"
+              : "hover:text-gray-900"}
+          >
+            {label}
+          </a>
+        ))}
       </nav>
       {children}
     </>

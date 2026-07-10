@@ -11,6 +11,7 @@ import {
   Layout as DefaultLayout,
   type LayoutProps,
   PageBody,
+  type RouteContext,
 } from "./layout.tsx";
 import { StylesProvider } from "./head.tsx";
 import { buildBoot } from "./boot.ts";
@@ -39,6 +40,7 @@ export interface Renderer {
     Layouts: ComponentType<LayoutProps>[],
     Page: ComponentType<Record<string, unknown>>,
     props: Record<string, unknown>,
+    route: RouteContext,
     nonce?: string,
   ) => string;
   /**
@@ -75,22 +77,27 @@ export function createRenderer(deps: RendererDeps): Renderer {
     Layouts: ComponentType<LayoutProps>[],
     Page: ComponentType<Record<string, unknown>>,
     props: Record<string, unknown>,
+    route: RouteContext,
     nonce?: string,
   ): string => {
     const { html, ids, props: islandProps, head: pageHead } = collectIslands(
       () => renderToString(h(Page, props) as VNode),
     );
     const boot = buildBoot(ids, islandProps, islandUrls, clientEntry);
-    // Wrap the page body in each layout inner→outer, then the app shell.
+    // Wrap the page body in each layout inner→outer, then the app shell. Every
+    // layer gets the same route context; only children differs.
     const body = Layouts.reduceRight(
       (children, Layout) =>
-        h(Layout, { children } satisfies LayoutProps) as VNode,
+        h(Layout, { children, route } satisfies LayoutProps) as VNode,
       h(PageBody, { html, boot, nonce }) as VNode,
     );
     const doc = h(StylesProvider, {
       styles,
       pageHead,
-      children: h(AppShell, { children: body } satisfies LayoutProps) as VNode,
+      children: h(
+        AppShell,
+        { children: body, route } satisfies LayoutProps,
+      ) as VNode,
     }) as VNode;
     return "<!DOCTYPE html>" + renderToString(doc);
   };
