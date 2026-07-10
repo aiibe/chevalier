@@ -28,10 +28,15 @@ loader/action/session contracts.
 
 ## 0.2.1
 
-Every `_layout.tsx` and the `_app` shell now receive a `route` prop — the current
-`url`, the matched route `path`, and the page's `data` — so you can highlight the
-active nav link without reaching for the raw request. On a 404 or error render
-`path` is `undefined`, since no route matched.
+Every `_layout.tsx` and the `_app` shell now receive a `route` prop — the
+current `url`, the matched route `path`, and the page's `data` — so you can
+highlight the active nav link without reaching for the raw request. On a 404 or
+error render `path` is `undefined`, since no route matched.
+
+_Scaffold (init 0.1.4):_ fixes `deno task check` failing on a freshly created
+app, and stops it type-checking the built bundle once you have built. Checking
+the production server needs a real build behind it, which the new
+`deno task check:prod` does.
 
 ## 0.2.0
 

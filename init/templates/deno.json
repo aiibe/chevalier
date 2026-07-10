@@ -4,7 +4,8 @@
     "build": "vite build && vite build --ssr",
     "preview": "vite preview",
     "start": "deno serve -A server.prod.ts",
-    "check": "deno fmt --check . && deno lint . && deno check"
+    "check": "deno fmt --check . && deno lint . && deno check app/ vite.config.ts",
+    "check:prod": "deno task build && deno check server.prod.ts"
   },
   "imports": {
     "chevalier": "jsr:@chevalier/core@{{CORE}}",

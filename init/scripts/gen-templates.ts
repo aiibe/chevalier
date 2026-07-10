@@ -12,6 +12,8 @@ const OUT = new URL("templates.gen.ts", HERE);
 // literal name breaks tooling: `gitignore` avoids a real dotfile; `deno.json`
 // stays literal but is unpublished so Deno never loads it as a config for this
 // dir. binary marks files that can't survive {{CORE}}/{{NAME}} substitution.
+// deno.json takes no comments (smoke.ts JSON.parses it), so note here: its
+// `exclude` serves fmt and lint only — check follows imports past any exclude.
 const MANIFEST: ReadonlyArray<readonly [string, string, boolean?]> = [
   ["deno.json", "deno.json"],
   ["vite.config.ts", "vite.config.ts"],

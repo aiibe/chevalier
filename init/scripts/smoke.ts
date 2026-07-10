@@ -143,7 +143,15 @@ try {
     ok("repointed core to local src");
   }
 
-  // 3. Dev server: boot, then assert SSR + island + handler responses.
+  // 3. Must run before the build: a check task reaching server.prod.ts (and so
+  // the not-yet-built bundle) only fails while dist/ is absent.
+  const checkFresh = await run(["deno", "task", "check"], { cwd: APP });
+  if (!checkFresh.success) {
+    console.error(dec.decode(checkFresh.stderr));
+    fail("deno task check failed on a fresh scaffold (before build)");
+  } else ok("deno task check passes before build");
+
+  // 4. Dev server: boot, then assert SSR + island + handler responses.
   // `deno task dev` runs `vite`; extra args after it reach vite (--port, --host).
   const dev = new Deno.Command("deno", {
     args: ["task", "dev", "--port", String(PORT), "--host", "127.0.0.1"],
@@ -302,7 +310,7 @@ try {
     await draining.catch(() => {});
   }
 
-  // 4. Build: client + SSR output must exist.
+  // 5. Build: client + SSR output must exist.
   const build = await run(["deno", "task", "build"], { cwd: APP });
   if (!build.success) {
     console.error(dec.decode(build.stderr));
@@ -324,7 +332,30 @@ try {
       fail("build produced no client manifest");
     } else ok("client manifest present");
 
-    // 5. Production server: server.prod.ts must serve /assets/ with immutable
+    // 6. `exclude` prunes check's roots, not its module graph, so dist never
+    // appears in the output — corrupting the bundle is the only reliable probe.
+    const bundle = `${APP}/dist/server/server.mjs`;
+    const realBundle = await Deno.readTextFile(bundle);
+    await Deno.writeTextFile(bundle, "this is not (valid javascript;\n");
+    const checkBuilt = await run(["deno", "task", "check"], { cwd: APP });
+    await Deno.writeTextFile(bundle, realBundle);
+    if (!checkBuilt.success) {
+      console.error(dec.decode(checkBuilt.stderr));
+      fail(
+        "deno task check reached dist/ (built bundle pulled into the graph)",
+      );
+    } else ok("deno task check stays out of dist/ after build");
+
+    // `check` can't reach server.prod.ts, so a real build is its only coverage.
+    const checkProd = await run(["deno", "check", "server.prod.ts"], {
+      cwd: APP,
+    });
+    if (!checkProd.success) {
+      console.error(dec.decode(checkProd.stderr));
+      fail("deno check server.prod.ts failed after build");
+    } else ok("server.prod.ts type-checks against the build");
+
+    // 7. Production server: server.prod.ts must serve /assets/ with immutable
     // cache headers, honor If-None-Match, reject non-GET/HEAD + traversal, serve
     // public/ files (favicon) revalidated from the root, and fall through to the
     // app for page routes.
