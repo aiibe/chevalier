@@ -17,9 +17,8 @@ component. Add your own CSS or `@theme` in `app/styles.css`.
 ## Production
 
 ```sh
-deno task build       # build the app
-deno task start       # serve the build
-deno task check:prod  # type-check server.prod.ts against a fresh build
+deno task build     # build the app
+deno task start     # serve the build
 ```
 
 Serves on port 8000. To change it, run `deno serve` directly with `--port`
