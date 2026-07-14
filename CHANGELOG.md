@@ -26,9 +26,10 @@ The `0.1` line is the public surface: the `deno.json` exports, the `app/`
 conventions (routes, `_app`/`_layout`/`_404`/`_error`, `_middleware`), and the
 loader/action/session contracts.
 
-_Scaffold (init 0.1.5):_ reverts the `deno task check` changes from 0.1.4, so
-`check` is once more a bare `deno check`. New apps commit their `deno.lock` for
-reproducible installs, and the README's Deno Deploy command ships it too.
+_Scaffold (init 0.1.5):_ new apps ship a `Dockerfile`, `.dockerignore`, and
+`compose.example.yaml` for a distroless container deploy. Reverts the 0.1.4
+`deno task check` changes back to a bare `deno check`, and commits `deno.lock`
+for reproducible installs.
 
 ## 0.2.1
 
