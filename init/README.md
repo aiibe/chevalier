@@ -30,3 +30,10 @@ A minimal working app to start from:
 
 Edit the island and it hot-updates with its state preserved. Edit a page or the
 layout and it does a full reload.
+
+## Next steps
+
+Full docs at **[chevalier.souk.dev](https://chevalier.souk.dev)** —
+[getting started](https://chevalier.souk.dev/docs/getting-started),
+[pages](https://chevalier.souk.dev/docs/pages),
+[islands](https://chevalier.souk.dev/docs/islands), and more.

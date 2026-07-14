@@ -31,6 +31,11 @@ _Scaffold (init 0.1.5):_ new apps ship a `Dockerfile`, `.dockerignore`, and
 `deno task check` changes back to a bare `deno check`, and commits `deno.lock`
 for reproducible installs.
 
+## Unreleased
+
+Docs now live at [chevalier.souk.dev](https://chevalier.souk.dev); the READMEs
+link there and keep the quick-start.
+
 ## 0.2.1
 
 Every `_layout.tsx` and the `_app` shell now receive a `route` prop — the
