@@ -28,13 +28,12 @@ const FILES: TemplateFile[] = [
   },
   {
     path: ".gitignore",
-    contents:
-      "node_modules/\n.deno/\ndist/\n.vite/\ndeno.lock\n.DS_Store\n*.log\n",
+    contents: "node_modules/\n.deno/\ndist/\n.vite/\n.DS_Store\n*.log\n",
   },
   {
     path: "README.md",
     contents:
-      "# {{NAME}}\n\nA [Chevalier](https://jsr.io/@chevalier/core) app.\n\n```sh\ndeno install\ndeno task dev       # start the dev server\ndeno task check     # format, lint, and type-check\n```\n\nRoutes live in `app/routes/`, islands in `app/islands/`. Static files (favicon,\nrobots.txt, images) go in `public/` and are served from the site root.\n\nStyling is [Tailwind](https://tailwindcss.com) v4 — write utility classes in any\ncomponent. Add your own CSS or `@theme` in `app/styles.css`.\n\n## Production\n\n```sh\ndeno task build     # build the app\ndeno task start     # serve the build\n```\n\nServes on port 8000. To change it, run `deno serve` directly with `--port`\nbefore the entry: `deno serve -A --port 3000 server.prod.ts`.\n\n## Deploy to Deno Deploy\n\nBuild first, then ship `dist/` — it's gitignored, so include it explicitly:\n\n```sh\ndeno task build\ndeno install -Arf jsr:@deno/deployctl\ndeployctl deploy --include=dist --include=deno.json --entrypoint=server.prod.ts\n```\n",
+      "# {{NAME}}\n\nA [Chevalier](https://jsr.io/@chevalier/core) app.\n\n```sh\ndeno install\ndeno task dev       # start the dev server\ndeno task check     # format, lint, and type-check\n```\n\nRoutes live in `app/routes/`, islands in `app/islands/`. Static files (favicon,\nrobots.txt, images) go in `public/` and are served from the site root.\n\nStyling is [Tailwind](https://tailwindcss.com) v4 — write utility classes in any\ncomponent. Add your own CSS or `@theme` in `app/styles.css`.\n\n## Production\n\n```sh\ndeno task build     # build the app\ndeno task start     # serve the build\n```\n\nServes on port 8000. To change it, run `deno serve` directly with `--port`\nbefore the entry: `deno serve -A --port 3000 server.prod.ts`.\n\n## Deploy to Deno Deploy\n\nBuild first, then ship `dist/` — it's gitignored, so include it explicitly:\n\n```sh\ndeno task build\ndeno install -Arf jsr:@deno/deployctl\ndeployctl deploy --include=dist --include=deno.json --include=deno.lock --entrypoint=server.prod.ts\n```\n",
   },
   {
     path: "public/favicon.png",

@@ -2,6 +2,5 @@ node_modules/
 .deno/
 dist/
 .vite/
-deno.lock
 .DS_Store
 *.log

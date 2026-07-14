@@ -31,5 +31,5 @@ Build first, then ship `dist/` — it's gitignored, so include it explicitly:
 ```sh
 deno task build
 deno install -Arf jsr:@deno/deployctl
-deployctl deploy --include=dist --include=deno.json --entrypoint=server.prod.ts
+deployctl deploy --include=dist --include=deno.json --include=deno.lock --entrypoint=server.prod.ts
 ```
