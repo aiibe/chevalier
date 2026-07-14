@@ -1,0 +1,9 @@
+# Copy to compose.yaml and adjust. `expose` publishes the port only to other
+# containers on the network; put a reverse proxy in front, or swap in
+# `ports: ["8000:8000"]` to reach the app directly from the host.
+services:
+  {{NAME}}:
+    build: .
+    expose:
+      - "8000"
+    restart: unless-stopped

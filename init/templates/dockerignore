@@ -1,0 +1,7 @@
+node_modules
+dist
+.deno
+.vite
+.git
+*.log
+.DS_Store

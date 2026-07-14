@@ -27,6 +27,11 @@
       "examples/"
     ]
   },
+  "fmt": {
+    "exclude": [
+      "init/templates/compose.example.yaml"
+    ]
+  },
   "tasks": {
     "test": "deno test -A",
     "dev": "vite",

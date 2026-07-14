@@ -33,3 +33,16 @@ deno task build
 deno install -Arf jsr:@deno/deployctl
 deployctl deploy --include=dist --include=deno.json --include=deno.lock --entrypoint=server.prod.ts
 ```
+
+## Deploy with Docker
+
+The `Dockerfile` builds the app and ships it on a distroless image. `expose`
+publishes port 8000 only to other containers, so run behind a reverse proxy — or
+map it to the host with `docker run -p 8000:8000`.
+
+```sh
+docker build -t {{NAME}} .
+docker run -p 8000:8000 {{NAME}}
+```
+
+Or copy `compose.example.yaml` to `compose.yaml` and run `docker compose up`.

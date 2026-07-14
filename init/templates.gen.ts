@@ -31,9 +31,23 @@ const FILES: TemplateFile[] = [
     contents: "node_modules/\n.deno/\ndist/\n.vite/\n.DS_Store\n*.log\n",
   },
   {
+    path: ".dockerignore",
+    contents: "node_modules\ndist\n.deno\n.vite\n.git\n*.log\n.DS_Store\n",
+  },
+  {
+    path: "Dockerfile",
+    contents:
+      'FROM denoland/deno:debian-2.9.2 AS build\nWORKDIR /app\nCOPY deno.json deno.lock ./\nRUN deno install --allow-scripts\nCOPY . .\nRUN deno task build\n\nFROM denoland/deno:distroless-2.9.2\nWORKDIR /app\nCOPY --from=build /app/dist ./dist\nCOPY --from=build /app/deno.json /app/deno.lock ./\nCOPY server.prod.ts ./\nEXPOSE 8000\nCMD ["serve", "-A", "--host", "0.0.0.0", "--port", "8000", "server.prod.ts"]\n',
+  },
+  {
+    path: "compose.example.yaml",
+    contents:
+      '# Copy to compose.yaml and adjust. `expose` publishes the port only to other\n# containers on the network; put a reverse proxy in front, or swap in\n# `ports: ["8000:8000"]` to reach the app directly from the host.\nservices:\n  {{NAME}}:\n    build: .\n    expose:\n      - "8000"\n    restart: unless-stopped\n',
+  },
+  {
     path: "README.md",
     contents:
-      "# {{NAME}}\n\nA [Chevalier](https://jsr.io/@chevalier/core) app.\n\n```sh\ndeno install\ndeno task dev       # start the dev server\ndeno task check     # format, lint, and type-check\n```\n\nRoutes live in `app/routes/`, islands in `app/islands/`. Static files (favicon,\nrobots.txt, images) go in `public/` and are served from the site root.\n\nStyling is [Tailwind](https://tailwindcss.com) v4 — write utility classes in any\ncomponent. Add your own CSS or `@theme` in `app/styles.css`.\n\n## Production\n\n```sh\ndeno task build     # build the app\ndeno task start     # serve the build\n```\n\nServes on port 8000. To change it, run `deno serve` directly with `--port`\nbefore the entry: `deno serve -A --port 3000 server.prod.ts`.\n\n## Deploy to Deno Deploy\n\nBuild first, then ship `dist/` — it's gitignored, so include it explicitly:\n\n```sh\ndeno task build\ndeno install -Arf jsr:@deno/deployctl\ndeployctl deploy --include=dist --include=deno.json --include=deno.lock --entrypoint=server.prod.ts\n```\n",
+      "# {{NAME}}\n\nA [Chevalier](https://jsr.io/@chevalier/core) app.\n\n```sh\ndeno install\ndeno task dev       # start the dev server\ndeno task check     # format, lint, and type-check\n```\n\nRoutes live in `app/routes/`, islands in `app/islands/`. Static files (favicon,\nrobots.txt, images) go in `public/` and are served from the site root.\n\nStyling is [Tailwind](https://tailwindcss.com) v4 — write utility classes in any\ncomponent. Add your own CSS or `@theme` in `app/styles.css`.\n\n## Production\n\n```sh\ndeno task build     # build the app\ndeno task start     # serve the build\n```\n\nServes on port 8000. To change it, run `deno serve` directly with `--port`\nbefore the entry: `deno serve -A --port 3000 server.prod.ts`.\n\n## Deploy to Deno Deploy\n\nBuild first, then ship `dist/` — it's gitignored, so include it explicitly:\n\n```sh\ndeno task build\ndeno install -Arf jsr:@deno/deployctl\ndeployctl deploy --include=dist --include=deno.json --include=deno.lock --entrypoint=server.prod.ts\n```\n\n## Deploy with Docker\n\nThe `Dockerfile` builds the app and ships it on a distroless image. `expose`\npublishes port 8000 only to other containers, so run behind a reverse proxy — or\nmap it to the host with `docker run -p 8000:8000`.\n\n```sh\ndocker build -t {{NAME}} .\ndocker run -p 8000:8000 {{NAME}}\n```\n\nOr copy `compose.example.yaml` to `compose.yaml` and run `docker compose up`.\n",
   },
   {
     path: "public/favicon.png",
